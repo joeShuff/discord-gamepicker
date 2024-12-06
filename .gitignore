@@ -8,6 +8,8 @@ __pycache__/
 
 games.db
 
+*.gif
+
 # Distribution / packaging
 .Python
 build/
