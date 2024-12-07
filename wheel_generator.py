@@ -54,12 +54,12 @@ def create_wheel(games, slice_size, angle_offset=0):
 def generate_rotations(start_rotation, complete_rotations, end_rotation):
     """
     Generates the rotation values for a spinning wheel with non-linear acceleration
-    and deceleration, ensuring it lands at the specified `end_rotation`.
+    and deceleration, ensuring it lands at the specified `end_rotation` smoothly.
     """
     # Parameters for acceleration and deceleration
     max_speed = 30  # Maximum speed in degrees per frame
     acceleration_frames = 20  # Number of frames for acceleration
-    deceleration_frames = 40  # Number of frames for deceleration (non-linear)
+    deceleration_frames = 80  # Number of frames for deceleration
 
     # Total rotation to achieve
     total_rotation = (complete_rotations * 360) + end_rotation - start_rotation
@@ -88,16 +88,20 @@ def generate_rotations(start_rotation, complete_rotations, end_rotation):
     speed_profile = acceleration_profile + constant_speed_profile + deceleration_profile
 
     # Generate cumulative rotation values
-    current_rotation = start_rotation
     frame_rotations = []
+    current_rotation = start_rotation
 
     for speed in speed_profile:
         current_rotation += speed
         frame_rotations.append(current_rotation)
 
-    # Adjust the final rotation to ensure it lands on end_rotation
-    final_rotation_offset = (start_rotation + total_rotation) - frame_rotations[-1]
-    frame_rotations[-1] += final_rotation_offset
+    # Smooth correction over the deceleration phase
+    rotation_offset = (start_rotation + total_rotation) - frame_rotations[-1]
+    deceleration_start_index = len(frame_rotations) - len(deceleration_profile)
+
+    for i in range(len(deceleration_profile)):
+        adjustment_ratio = (i + 1) / len(deceleration_profile)  # Gradual adjustment factor
+        frame_rotations[deceleration_start_index + i] += rotation_offset * adjustment_ratio
 
     return frame_rotations
 
@@ -139,6 +143,10 @@ def generate_wheel_of_games(games, winning_index, file_name):
         buf.seek(0)
         images.append(Image.open(buf))
         plt.close(fig)
+
+    # Duplicate the last frame for 10 more frames
+    for _ in range(10):
+        images.append(images[-1])
 
     # Save the animation as a GIF
     images[0].save(file_name, save_all=True, append_images=images[1:], duration=100, loop=0)
