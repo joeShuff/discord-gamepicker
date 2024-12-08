@@ -144,7 +144,7 @@ def log_game_selection(game_id):
 
 
 def mark_game_logs_as_ignored(server_id, game_name, memory_date=None):
-    """Mark game logs as ignored. If memory_date is provided, only mark that date; otherwise, mark all logs."""
+    """Mark game logs as ignored. If memory_date is provided, only mark the specified timestamp; otherwise, mark all logs."""
     with db_connect() as conn:
         cursor = conn.cursor()
 
@@ -157,12 +157,12 @@ def mark_game_logs_as_ignored(server_id, game_name, memory_date=None):
         if result:
             game_id = result[0]
 
-            # If memory_date is provided, only update logs for that date
+            # If memory_date is provided, only update the log for that specific timestamp
             if memory_date:
                 cursor.execute("""
                     UPDATE game_log
                     SET ignored = 1
-                    WHERE game_id = ? AND DATE(chosen_at) = ?
+                    WHERE game_id = ? AND chosen_at = ?
                 """, (game_id, memory_date))
             else:
                 # If no memory_date is provided, update all logs for that game
@@ -178,21 +178,23 @@ def mark_game_logs_as_ignored(server_id, game_name, memory_date=None):
             return False  # Game not found in game_list
 
 
+
 def fetch_log_dates_for_game(server_id, game_name):
-    """Fetch dates for logs associated with a specific game that are not ignored."""
+    """Fetch timestamps for logs associated with a specific game that are not ignored."""
     with db_connect() as conn:
         cursor = conn.cursor()
 
-        # Fetch the log dates for the specified game, excluding ignored entries
+        # Fetch the log timestamps for the specified game, excluding ignored entries
         cursor.execute("""
-            SELECT DISTINCT DATE(chosen_at) AS log_date
+            SELECT DISTINCT chosen_at AS log_timestamp
             FROM game_log
             JOIN game_list ON game_log.game_id = game_list.id
             WHERE game_list.server_id = ? 
               AND game_list.name = ?
               AND (game_log.ignored IS NULL OR game_log.ignored = 0)
-            ORDER BY log_date DESC
+            ORDER BY log_timestamp DESC
         """, (server_id, game_name))
 
-        return [row[0] for row in cursor.fetchall()]  # List of dates
+        return [row[0] for row in cursor.fetchall()]  # List of timestamps
+
 

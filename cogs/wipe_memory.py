@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import discord
 from discord import Interaction, ui
 from discord.ext import commands
@@ -31,8 +33,7 @@ class ConfirmationView(ui.View):
         await interaction.response.edit_message(
             content="Memory removal canceled.",
             embed=None,
-            view=None,
-            ephemeral=True
+            view=None
         )
 
 
@@ -106,7 +107,8 @@ class GameWipeMemoryCog(commands.Cog):
 
         # Filter dates that start with the current string typed by the user
         return [
-            discord.app_commands.Choice(name=date, value=date)
+            discord.app_commands.Choice(name=datetime.strptime(date, "%Y-%m-%d %H:%M:%S").strftime("%d %b %Y %H:%M"),
+                                        value=date)
             for date in available_dates if date.startswith(current)
         ]
 
