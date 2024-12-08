@@ -3,20 +3,21 @@ from discord import Interaction, ui
 from discord.ext import commands
 from discord.ui import Button
 
-from game_db_controller import fetch_game_from_db, mark_game_logs_as_ignored, fetch_game_names
+from game_db_controller import fetch_game_from_db, mark_game_logs_as_ignored, fetch_game_names, fetch_log_dates_for_game
 
 
 # Confirmation View with Buttons
 class ConfirmationView(ui.View):
-    def __init__(self, server_id: str, game_name: str):
+    def __init__(self, server_id: str, game_name: str, memory_date: str = None):
         super().__init__()
         self.server_id = server_id
         self.game_name = game_name
+        self.memory_date = memory_date
 
     @discord.ui.button(label="Yes, wipe memory", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: Interaction, button: Button):
         # Call the function to mark the game as ignored
-        mark_game_logs_as_ignored(self.server_id, self.game_name)
+        mark_game_logs_as_ignored(self.server_id, self.game_name, self.memory_date)
 
         # Acknowledge the action
         await interaction.response.edit_message(
@@ -41,7 +42,7 @@ class GameWipeMemoryCog(commands.Cog):
 
     # Command to wipe memory for a game
     @discord.app_commands.command(name="wipegamememory", description="Clear game log memory for a game")
-    async def wipe_game_memory(self, interaction: Interaction, game_name: str):
+    async def wipe_game_memory(self, interaction: Interaction, game_name: str, memory_date: str = None):
         """Wipe the memory of a specific game (mark entries as ignored)."""
         # Fetch the game details to confirm it exists
         server_id = str(interaction.guild.id)
@@ -51,13 +52,28 @@ class GameWipeMemoryCog(commands.Cog):
             await interaction.response.send_message("Error: No such game found.", ephemeral=True)
             return
 
-        view = ConfirmationView(server_id, game_name)
+        # Fetch available log dates for the game if memory_date is provided
+        if memory_date:
+            available_dates = fetch_log_dates_for_game(server_id, game_name)
+            if memory_date not in available_dates:
+                await interaction.response.send_message(
+                    f"Error: No log found for '{game_name}' on {memory_date}.", ephemeral=True
+                )
+                return
+
+        # Create the confirmation view and pass the memory_date if provided
+        view = ConfirmationView(server_id, game_name, memory_date)
 
         # Send confirmation message with buttons
+        if memory_date:
+            confirmation_message = f"Are you sure you want to wipe memory for {game_name} on {memory_date}?"
+        else:
+            confirmation_message = f"Are you sure you want to wipe all memory for {game_name}?"
+
         await interaction.response.send_message(
             embed=discord.Embed(
-                title=f"Are you sure you want to wipe memory for {game_name}?",
-                description="This will mark all play history related to this game as ignored.",
+                title=confirmation_message,
+                description="This will remove play history related to this game. Proceed with caution.",
                 color=discord.Color.red()
             ),
             view=view,
@@ -74,6 +90,26 @@ class GameWipeMemoryCog(commands.Cog):
             discord.app_commands.Choice(name=game, value=game)
             for game in game_names if current.lower() in game.lower()
         ]
+
+    @wipe_game_memory.autocomplete("memory_date")
+    async def memory_date_autocomplete(self, interaction: Interaction, current: str):
+        """Autocomplete function for memory dates based on the game name."""
+        server_id = str(interaction.guild.id)
+
+        # Retrieve the game_name option from the current interaction
+        game_name = interaction.namespace.game_name
+
+        print(f"game name is {game_name}")
+
+        # Fetch available log dates for the specified game
+        available_dates = fetch_log_dates_for_game(server_id, game_name)
+
+        # Filter dates that start with the current string typed by the user
+        return [
+            discord.app_commands.Choice(name=date, value=date)
+            for date in available_dates if date.startswith(current)
+        ]
+
 
 # Add the cog to the bot
 async def setup(bot):
