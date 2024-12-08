@@ -10,6 +10,26 @@ radius = 5  # Radius of the wheel
 center = (0, 0)  # Center of the wheel
 
 
+def calculate_gif_duration(file_name):
+    """
+    Calculate the total duration of a GIF by summing up the durations of all frames.
+    """
+    with Image.open(file_name) as gif:
+        return sum(frame.info.get("duration", 0) for frame in iter_frames(gif)) / 1000  # Convert ms to seconds
+
+
+def iter_frames(image):
+    """
+    Generator to iterate through all frames of a GIF.
+    """
+    try:
+        while True:
+            yield image.copy()
+            image.seek(image.tell() + 1)
+    except EOFError:
+        pass
+
+
 # Function to create the wheel with a static triangle needle
 def create_wheel(games, slice_size, angle_offset=0):
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -25,11 +45,26 @@ def create_wheel(games, slice_size, angle_offset=0):
                               facecolor=plt.cm.tab10(i % 10), edgecolor='black', lw=2)
         ax.add_patch(wedge)
 
-        # Add text in the middle of each wedge
-        angle_mid = (start_angle + end_angle) / 2
-        ax.text(radius * 0.6 * np.cos(np.radians(angle_mid)),
-                radius * 0.6 * np.sin(np.radians(angle_mid)),
-                game, ha='center', va='center', fontsize=12, color='white', weight='bold')
+        # Add text along the radius, flipped to read outward
+        angle_mid = (start_angle + end_angle) / 2  # Middle angle of the slice
+        text_radius = radius - 0.5  # Place the text slightly inward from the circumference
+
+        # Add text along the radius, flipped to read outward
+        angle_mid = (start_angle + end_angle) / 2  # Middle angle of the slice
+        text_radius = radius * 0.6  # Adjust text position closer to the center
+
+        # Calculate text position
+        x_pos = text_radius * np.cos(np.radians(angle_mid))
+        y_pos = text_radius * np.sin(np.radians(angle_mid))
+
+        # Determine the correct rotation angle for outward-facing text
+        if 90 < angle_mid <= 270:
+            rotation = angle_mid + 180  # Flip text outward
+        else:
+            rotation = angle_mid
+
+        ax.text(x_pos, y_pos, game, ha='center', va='center', fontsize=10, color='white',
+                weight='bold', rotation_mode='anchor', rotation=rotation)  # Rotate text outward
 
     # Draw the static triangle as the arrow needle
     triangle_length = 0.8  # Size of the triangle
@@ -54,54 +89,58 @@ def create_wheel(games, slice_size, angle_offset=0):
 def generate_rotations(start_rotation, complete_rotations, end_rotation):
     """
     Generates the rotation values for a spinning wheel with non-linear acceleration
-    and deceleration, ensuring it lands at the specified `end_rotation` smoothly.
+    and deceleration, ensuring it lands at the specified `end_rotation` smoothly,
+    and rotates clockwise.
     """
     # Parameters for acceleration and deceleration
     max_speed = 30  # Maximum speed in degrees per frame
     acceleration_frames = 20  # Number of frames for acceleration
     deceleration_frames = 80  # Number of frames for deceleration
 
-    # Total rotation to achieve
-    total_rotation = (complete_rotations * 360) + end_rotation - start_rotation
+    # Total rotation to achieve (negative for clockwise)
+    total_rotation = (complete_rotations * 360) + (360 - end_rotation) + start_rotation
 
     # Acceleration phase using a quadratic function for non-linear easing
     acceleration_profile = [
-        max_speed * (i / acceleration_frames) ** 2 for i in range(acceleration_frames)
+        round(max_speed * (i / acceleration_frames) ** 2) for i in range(acceleration_frames)
     ]
     degrees_in_acceleration = sum(acceleration_profile)
 
     # Deceleration phase using a quadratic function for non-linear easing
     deceleration_profile = [
-        max_speed * (1 - (i / deceleration_frames) ** 2) for i in range(deceleration_frames)
+        round(max_speed * (1 - (i / deceleration_frames) ** 2)) for i in range(deceleration_frames)
     ]
     degrees_in_deceleration = sum(deceleration_profile)
 
     # Calculate the degrees for the constant-speed phase
-    degrees_in_constant_speed = total_rotation - (degrees_in_acceleration + degrees_in_deceleration)
-    if degrees_in_constant_speed < 0:
-        raise ValueError("Total rotation is too small for the given acceleration and deceleration phases.")
+    degrees_left = total_rotation - (degrees_in_acceleration + degrees_in_deceleration)
+    if degrees_left < 0:
+        print("Total rotation is too small for the given acceleration and deceleration phases.")
+        return generate_rotations(start_rotation, complete_rotations + 2, end_rotation)
 
-    constant_speed_frames = int(degrees_in_constant_speed / max_speed)
+    constant_speed_frames = int(degrees_left / max_speed)
+    degrees_in_constant_speed = constant_speed_frames * max_speed
     constant_speed_profile = [max_speed] * constant_speed_frames
 
     # Combine the three phases
     speed_profile = acceleration_profile + constant_speed_profile + deceleration_profile
 
-    # Generate cumulative rotation values
+    # Generate cumulative rotation values (subtracting speeds for clockwise rotation)
     frame_rotations = []
     current_rotation = start_rotation
 
     for speed in speed_profile:
-        current_rotation += speed
+        current_rotation -= speed  # Subtract for clockwise rotation
         frame_rotations.append(current_rotation)
 
     # Smooth correction over the deceleration phase
-    rotation_offset = (start_rotation + total_rotation) - frame_rotations[-1]
+    correction_needed = total_rotation - degrees_in_deceleration - degrees_in_acceleration - degrees_in_constant_speed
     deceleration_start_index = len(frame_rotations) - len(deceleration_profile)
 
     for i in range(len(deceleration_profile)):
-        adjustment_ratio = (i + 1) / len(deceleration_profile)  # Gradual adjustment factor
-        frame_rotations[deceleration_start_index + i] += rotation_offset * adjustment_ratio
+        # Gradually distribute the correction across the deceleration phase
+        adjustment_ratio = (i + 1) / len(deceleration_profile)
+        frame_rotations[deceleration_start_index + i] -= correction_needed * adjustment_ratio
 
     return frame_rotations
 
@@ -115,20 +154,21 @@ def generate_wheel_of_games(games, winning_index, file_name):
     slice_size = 360 / len(games)
 
     # + 1 so it's not stopping right on the line
-    winning_min_rotation = (winning_index * slice_size) + 1
+    winning_max_rotation = 360 - ((winning_index * slice_size) + 1)
     # - 2 so it also doesn't stop right on the line
-    winning_max_rotation = winning_min_rotation + slice_size - 2
+    winning_min_rotation = winning_max_rotation - slice_size
 
     winning_rotation = int(random.uniform(winning_min_rotation, winning_max_rotation))
 
     # Create animation frames
     rotations = generate_rotations(start_angle, complete_rotations, winning_rotation)
 
-    # accelerate in from 1 degree per frame to lets say 30
+    # accelerate in from 1 degree per frame to 30
     # hold speed until 1 rotation left
     # decelerate from 30 degrees per frame to 0 degrees per frame
 
     print(f"starting rot is {start_angle}")
+    print(f"total rotations is {complete_rotations}")
     print(f"winning min is {winning_min_rotation}")
     print(f"winning max is {winning_max_rotation}")
     print(f"winning rot is {winning_rotation}")
@@ -150,7 +190,3 @@ def generate_wheel_of_games(games, winning_index, file_name):
 
     # Save the animation as a GIF
     images[0].save(file_name, save_all=True, append_images=images[1:], duration=100, loop=0)
-
-
-games = ["Game 1", "Game 2", "Game 3", "Game 4", "Game 5"]
-generate_wheel_of_games(games=games, winning_index=2, file_name="wheel_of_games.gif")

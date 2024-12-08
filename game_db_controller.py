@@ -26,6 +26,7 @@ def initialize_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         game_id INTEGER NOT NULL,
         chosen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ignored BOOLEAN DEFAULT 0,
         FOREIGN KEY (game_id) REFERENCES game_list(id)
     )
     """)
@@ -63,6 +64,14 @@ def remove_game_from_db(server_id, name):
         return cursor.rowcount  # Returns the number of rows affected
 
 
+def fetch_game_from_db(server_id, name):
+    # Query the database to find the game
+    with db_connect() as conn:
+        cursor = conn.cursor()
+        query = "SELECT name, banner_link FROM game_list WHERE server_id = ? AND name = ?"
+        return cursor.execute(query, (server_id, name)).fetchone()
+
+
 def get_all_games(server_id):
     """Retrieve all games for a server."""
     with db_connect() as conn:
@@ -73,12 +82,24 @@ def get_all_games(server_id):
                 MAX(game_log.chosen_at) AS last_played, 
                 COUNT(game_log.id) AS times_played
             FROM game_list
-            LEFT JOIN game_log ON game_list.id = game_log.game_id
+            LEFT JOIN game_log 
+                ON game_list.id = game_log.game_id 
+                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
             WHERE game_list.server_id = ?
             GROUP BY game_list.id
             ORDER BY last_played ASC NULLS FIRST
         """, (server_id,))
         return cursor.fetchall()
+
+
+def fetch_game_names(server_id):
+    with db_connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT name FROM game_list
+            WHERE server_id = ?
+        """, (server_id,))
+        return [row[0] for row in cursor.fetchall()]
 
 
 def get_eligible_games(server_id, player_count):
@@ -98,10 +119,15 @@ def get_least_played_games(server_id, player_count):
     with db_connect() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, COUNT(game_log.id) AS times_played
+            SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
+                   COUNT(game_log.id) AS times_played
             FROM game_list
-            LEFT JOIN game_log ON game_list.id = game_log.game_id
-            WHERE game_list.server_id = ? AND game_list.min_players <= ? AND game_list.max_players >= ?
+            LEFT JOIN game_log 
+                ON game_list.id = game_log.game_id 
+                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
+            WHERE game_list.server_id = ? 
+              AND game_list.min_players <= ? 
+              AND game_list.max_players >= ?
             GROUP BY game_list.id
             ORDER BY times_played ASC
         """, (server_id, player_count, player_count))
@@ -115,3 +141,29 @@ def log_game_selection(game_id):
         cursor.execute(
             "INSERT INTO game_log (game_id) VALUES (?)", (game_id,)
         )
+
+
+def mark_game_logs_as_ignored(server_id, game_name):
+    with db_connect() as conn:
+        cursor = conn.cursor()
+
+        # Fetch the game_id from the game_list table using the game name
+        cursor.execute("""
+            SELECT id FROM game_list WHERE name = ? AND server_id = ?
+        """, (game_name, server_id))
+        result = cursor.fetchone()
+
+        if result:
+            game_id = result[0]
+
+            # Update the rows for the specific game_id in the game_log table
+            cursor.execute("""
+                UPDATE game_log
+                SET ignored = 1
+                WHERE game_id = ?
+            """, (game_id,))
+            conn.commit()
+            return True  # Indicating the game logs were marked as ignored
+        else:
+            return False  # Game not found in game_list
+
