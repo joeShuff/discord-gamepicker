@@ -82,7 +82,8 @@ class ConfirmChoice(ui.View):
             return None
 
         # Pick a game
-        game_options, chosen_game = pick_game(games, exclude_game_id=exclude_game_id, ignore_choosing_least_played=ignore_least_played)
+        game_options, chosen_game = pick_game(games, exclude_game_id=exclude_game_id,
+                                              ignore_choosing_least_played=ignore_least_played)
         if not chosen_game:
             await interaction.followup.send("No games available to choose from.", ephemeral=True)
             return None
@@ -142,10 +143,10 @@ class ConfirmChoice(ui.View):
     async def cancel(self, interaction: Interaction, button: ui.Button):
         # Delete the GIF message and the current interaction message
         await self.gif_message.delete()
-        await interaction.message.delete()
-        await self.interaction.response.delete()
-        # Send confirmation of cancellation
-        await interaction.followup.send("Interaction canceled and messages cleared.", ephemeral=True)
+        await interaction.message.edit(
+            content="Reet then, I've nipped that in t’bud. All sorted – like it never happened! If tha needs owt else, gi’ me a shout, aye? 🎡",
+            view=None,
+            embed=None)
 
 
 class ChooseGameCommand(commands.Cog):
@@ -176,7 +177,8 @@ class ChooseGameCommand(commands.Cog):
             return
 
         # Respond to the interaction
-        await interaction.response.send_message(f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
+        await interaction.response.send_message(
+            f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
 
         # Generate the GIF
         winning_index = game_options.index(chosen_game)
@@ -201,5 +203,3 @@ class ChooseGameCommand(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(ChooseGameCommand(bot))
-
-
