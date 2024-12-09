@@ -1,8 +1,12 @@
 import sqlite3
+import os
 
-DB_PATH = "games.db"
+DB_PATH = os.path.join(os.getcwd(), "config", "games.db")
 
 def initialize_database():
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
     """Initializes the SQLite database with the required tables if they don't already exist."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
