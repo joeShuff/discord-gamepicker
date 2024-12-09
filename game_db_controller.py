@@ -198,3 +198,24 @@ def fetch_log_dates_for_game(server_id, game_name):
         return [row[0] for row in cursor.fetchall()]  # List of timestamps
 
 
+def get_games_by_player_count(server_id, player_count):
+    """Fetch games that support the specified player count."""
+    with db_connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+                        SELECT 
+                            game_list.name, 
+                            MAX(game_log.chosen_at) AS last_played, 
+                            COUNT(game_log.id) AS times_played
+                        FROM game_list
+                        LEFT JOIN game_log 
+                            ON game_list.id = game_log.game_id 
+                            AND (game_log.ignored IS NULL OR game_log.ignored = 0)
+                        WHERE game_list.server_id = ? 
+                        AND game_list.min_players <= ? 
+                        AND game_list.max_players >= ?
+                        GROUP BY game_list.id
+                        ORDER BY last_played ASC NULLS FIRST
+                    """, (server_id, player_count, player_count))
+        return cursor.fetchall()
+
