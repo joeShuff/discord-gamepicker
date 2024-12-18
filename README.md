@@ -52,10 +52,13 @@ List all available games and their details.
 docker run -d \
   --name wheel-of-games-bot \
   -e DISCORD_TOKEN="your-bot-token" \
+  -v /path/to/your/config/folder:/app/config \
   denizenn:wheel-of-games-bot:latest
 ```
 
 Replace "your-bot-token" with your actual Discord bot token. This will run the bot as a detached container named wheel-of-games-bot with the specified bot token passed as an environment variable.
+
+Replace "path/to/your/config/folder" with the location you'd like the bot to store its database.
 
 ## Local Setup & Installation ⚙️  
 
