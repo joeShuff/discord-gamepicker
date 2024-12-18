@@ -1,5 +1,6 @@
 import asyncio
 import random
+from datetime import datetime, timedelta
 
 import discord
 from discord import Interaction, ui, Embed
@@ -57,7 +58,7 @@ def pick_game(games, exclude_game_id=None, ignore_choosing_least_played=False):
 
 
 class ConfirmChoice(ui.View):
-    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id):
+    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None):
         super().__init__()
         self.interaction = interaction
         self.bot = bot
@@ -66,6 +67,7 @@ class ConfirmChoice(ui.View):
         self.gif_message = gif_message
         self.player_count = player_count
         self.server_id = server_id
+        self.event_day = event_day
 
     async def regenerate_wheel(self, interaction, exclude_game_id=None, ignore_least_played=False):
         # Fetch eligible games
@@ -107,7 +109,7 @@ class ConfirmChoice(ui.View):
         # Send the new embed with buttons
         embed = create_game_embed(chosen_game)
         new_view = ConfirmChoice(
-            self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id
+            self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id, self.event_day
         )
         await interaction.followup.send(embed=embed, view=new_view)
         return chosen_game
@@ -115,7 +117,7 @@ class ConfirmChoice(ui.View):
     @ui.button(label="Aye, we'll play this one.", style=discord.ButtonStyle.success)
     async def confirm(self, interaction: Interaction, button: ui.Button):
         log_game_selection(self.current_game[0])
-        scheduled_event = await schedule_game_event(interaction, self.current_game)
+        scheduled_event = await schedule_game_event(interaction, self.current_game, self.event_day)
         if scheduled_event:
             await interaction.message.edit(
                 content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
@@ -154,8 +156,18 @@ class ChooseGameCommand(commands.Cog):
         self.bot = bot
 
     @discord.app_commands.command(name="choosegame", description="Choose a game to play!")
-    async def choose_game(self, interaction: Interaction, player_count: int, ignore_least_played: bool = False):
+    async def choose_game(self, interaction: Interaction, player_count: int, ignore_least_played: bool = False, event_day: str = None):
         server_id = str(interaction.guild.id)
+
+        if event_day:
+            try:
+                datetime.strptime(event_day, "%d/%b")  # Check if the format is valid
+            except ValueError:
+                await interaction.response.send_message(
+                    f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
+                    ephemeral=True
+                )
+                return
 
         # Fetch games
         games = get_eligible_games(server_id, player_count)
@@ -197,9 +209,33 @@ class ChooseGameCommand(commands.Cog):
 
         # Send the embed with buttons
         embed = create_game_embed(chosen_game)
-        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id)
+        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id, event_day)
         await interaction.followup.send(embed=embed, view=view)
 
+    @choose_game.autocomplete("event_day")
+    async def autocomplete_event_day(self, interaction: Interaction, current: str):
+        """
+        Autocomplete for the event_day parameter to suggest the next 4 Wednesdays.
+        """
+        today = discord.utils.utcnow()
+        next_wednesdays = []
+
+        # Find the next Wednesday
+        days_until_next_wednesday = (2 - today.weekday() + 7) % 7 or 7
+        next_wednesday = today + timedelta(days=days_until_next_wednesday)
+
+        # Generate the next 4 Wednesdays
+        for i in range(4):
+            next_wednesdays.append(next_wednesday + timedelta(weeks=i))
+
+        # Format as dd/MMM
+        suggestions = [date.strftime("%d/%b") for date in next_wednesdays]
+
+        # Create Choices for autocomplete
+        return [
+            discord.app_commands.Choice(name=f"{suggestion}", value=suggestion)
+            for suggestion in suggestions
+        ]
 
 async def setup(bot):
     await bot.add_cog(ChooseGameCommand(bot))

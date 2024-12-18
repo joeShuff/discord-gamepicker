@@ -184,8 +184,8 @@ def generate_wheel_of_games(games, winning_index, file_name):
         images.append(Image.open(buf))
         plt.close(fig)
 
-    # Duplicate the last frame for 10 more frames
-    for _ in range(10):
+    # Duplicate the last frame for 20 more frames
+    for _ in range(20):
         images.append(images[-1])
 
     # Save the animation as a GIF
