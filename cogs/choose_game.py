@@ -7,7 +7,8 @@ from discord import Interaction, ui, Embed
 from discord.ext import commands
 
 from event_handler import schedule_game_event
-from game_db_controller import log_game_selection, get_eligible_games, get_least_played_games
+from game_db_controller import log_game_selection, get_eligible_games, get_least_played_games, get_all_games_display, \
+    get_all_server_games, fetch_game_names
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
 
@@ -109,7 +110,8 @@ class ConfirmChoice(ui.View):
         # Send the new embed with buttons
         embed = create_game_embed(chosen_game)
         new_view = ConfirmChoice(
-            self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id, self.event_day
+            self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id,
+            self.event_day
         )
         await interaction.followup.send(embed=embed, view=new_view)
         return chosen_game
@@ -156,7 +158,14 @@ class ChooseGameCommand(commands.Cog):
         self.bot = bot
 
     @discord.app_commands.command(name="choosegame", description="Choose a game to play!")
-    async def choose_game(self, interaction: Interaction, player_count: int, ignore_least_played: bool = False, event_day: str = None):
+    async def choose_game(
+            self,
+            interaction: Interaction,
+            player_count: int,
+            ignore_least_played: bool = False,
+            event_day: str = None,
+            force_game: str = None
+    ):
         server_id = str(interaction.guild.id)
 
         if event_day:
@@ -175,6 +184,7 @@ class ChooseGameCommand(commands.Cog):
             await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
             return
 
+
         if not ignore_least_played:
             games = get_least_played_games(server_id, player_count)
 
@@ -184,6 +194,24 @@ class ChooseGameCommand(commands.Cog):
 
         # Pick a game
         game_options, chosen_game = pick_game(games)
+
+        if force_game:
+            server_games = get_all_server_games(server_id)  # Assuming a function to get all games
+            matching_game = next((game for game in server_games if game[1].lower() == force_game.lower()), None)
+
+            if not matching_game:
+                await interaction.response.send_message(
+                    f"The specified game `{force_game}` was not found or is ineligible.",
+                    ephemeral=True,
+                )
+                return
+
+            if matching_game not in game_options:
+                print(f"forced game {force_game} isn't in options list, adding it")
+                game_options.append(matching_game)
+
+            chosen_game = matching_game
+
         if not chosen_game:
             await interaction.response.send_message("No games available to choose from.", ephemeral=True)
             return
@@ -209,7 +237,8 @@ class ChooseGameCommand(commands.Cog):
 
         # Send the embed with buttons
         embed = create_game_embed(chosen_game)
-        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id, event_day)
+        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
+                             event_day)
         await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
@@ -236,6 +265,18 @@ class ChooseGameCommand(commands.Cog):
             discord.app_commands.Choice(name=f"{suggestion}", value=suggestion)
             for suggestion in suggestions
         ]
+
+    @choose_game.autocomplete(name="force_game")
+    async def autocomplete_force_game(self, interaction: Interaction, current: str):
+        """Provide autocomplete suggestions for game names."""
+        server_id = str(interaction.guild.id)
+        game_names = fetch_game_names(server_id)  # Fetch a list of game names from the database
+
+        return [
+            discord.app_commands.Choice(name=game, value=game)
+            for game in game_names if current.lower() in game.lower()
+        ]
+
 
 async def setup(bot):
     await bot.add_cog(ChooseGameCommand(bot))

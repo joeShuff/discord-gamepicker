@@ -76,7 +76,24 @@ def fetch_game_from_db(server_id, name):
         return cursor.execute(query, (server_id, name)).fetchone()
 
 
-def get_all_games(server_id):
+def get_all_server_games(server_id):
+    """Retrieve all games for a server."""
+    with db_connect() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
+               COUNT(game_log.id) AS times_played
+            FROM game_list
+            LEFT JOIN game_log 
+                ON game_list.id = game_log.game_id 
+                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
+            WHERE game_list.server_id = ? 
+            GROUP BY game_list.id
+            """, (server_id,))
+        return cursor.fetchall()
+
+
+def get_all_games_display(server_id):
     """Retrieve all games for a server."""
     with db_connect() as conn:
         cursor = conn.cursor()

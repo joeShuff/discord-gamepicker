@@ -2,7 +2,7 @@ import discord
 from discord import Interaction, Embed
 from discord.ext import commands
 
-from game_db_controller import get_all_games, get_games_by_player_count
+from game_db_controller import get_all_games_display, get_games_by_player_count
 
 
 class ListGamesCommand(commands.Cog):
@@ -18,7 +18,7 @@ class ListGamesCommand(commands.Cog):
             games = get_games_by_player_count(server_id, player_count)
         else:
             # Fetch all games if player_count is not provided
-            games = get_all_games(server_id)
+            games = get_all_games_display(server_id)
 
         if not games:
             await interaction.response.send_message(

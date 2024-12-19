@@ -2,7 +2,7 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from game_db_controller import remove_game_from_db, fetch_game_from_db, get_all_games, fetch_game_names
+from game_db_controller import remove_game_from_db, fetch_game_from_db, get_all_games_display, fetch_game_names
 
 
 class ConfirmRemove(ui.View):
