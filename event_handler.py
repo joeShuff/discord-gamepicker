@@ -3,11 +3,12 @@ from discord.utils import utcnow, MISSING
 from discord import EntityType
 from discord import PrivacyLevel
 
+from util import date_util
+
 
 async def schedule_game_event(interaction, game, event_day=None):
     """Schedules a Discord event for the chosen game."""
     guild = interaction.guild
-    print(f"requested event day is {event_day}")
 
     # Extract details from the game
     game_id, name, steam_link, banner_link, *_ = game
@@ -18,11 +19,7 @@ async def schedule_game_event(interaction, game, event_day=None):
     # If event_day is provided, validate and parse it
     if event_day:
         try:
-            parsed_date = datetime.datetime.strptime(event_day, "%d/%b")
-            event_start = parsed_date.replace(year=now.year, hour=20, minute=0, second=0, microsecond=0, tzinfo=now.tzinfo)
-            # Handle if the parsed date is in the past by moving to the next year
-            if event_start < now:
-                event_start = event_start.replace(year=now.year + 1)
+            event_start = date_util.convert_input_to_date(event_day)
         except ValueError:
             await interaction.response.send_message(
                 f"Invalid date format for event_day: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
@@ -31,9 +28,7 @@ async def schedule_game_event(interaction, game, event_day=None):
             return
     else:
         # Default to the next Wednesday at 8 PM UTC
-        days_until_next_wednesday = (2 - now.weekday() + 7) % 7 or 7  # Ensure at least 7 days if today is Wednesday
-        event_start = now + datetime.timedelta(days=days_until_next_wednesday)
-        event_start = event_start.replace(hour=20, minute=0, second=0, microsecond=0)
+        event_start = date_util.get_next_day_occurrence()
 
     event_end = event_start + datetime.timedelta(hours=2)  # Ends 2 hours later
 

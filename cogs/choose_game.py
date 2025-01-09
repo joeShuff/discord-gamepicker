@@ -9,6 +9,7 @@ from discord.ext import commands
 from event_handler import schedule_game_event
 from game_db_controller import log_game_selection, get_eligible_games, get_least_played_games, get_all_games_display, \
     get_all_server_games, fetch_game_names
+from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
 
@@ -170,7 +171,7 @@ class ChooseGameCommand(commands.Cog):
 
         if event_day:
             try:
-                datetime.strptime(event_day, "%d/%b")  # Check if the format is valid
+                date_util.check_valid_input_date(event_day)
             except ValueError:
                 await interaction.response.send_message(
                     f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
@@ -183,7 +184,6 @@ class ChooseGameCommand(commands.Cog):
         if not games:
             await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
             return
-
 
         if not ignore_least_played:
             games = get_least_played_games(server_id, player_count)
@@ -246,19 +246,7 @@ class ChooseGameCommand(commands.Cog):
         """
         Autocomplete for the event_day parameter to suggest the next 4 Wednesdays.
         """
-        today = discord.utils.utcnow()
-        next_wednesdays = []
-
-        # Find the next Wednesday
-        days_until_next_wednesday = (2 - today.weekday() + 7) % 7 or 7
-        next_wednesday = today + timedelta(days=days_until_next_wednesday)
-
-        # Generate the next 4 Wednesdays
-        for i in range(4):
-            next_wednesdays.append(next_wednesday + timedelta(weeks=i))
-
-        # Format as dd/MMM
-        suggestions = [date.strftime("%d/%b") for date in next_wednesdays]
+        suggestions = date_util.get_next_wednesdays(4)
 
         # Create Choices for autocomplete
         return [

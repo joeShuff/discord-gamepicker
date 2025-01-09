@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Log in to Docker Hub or GHCR
+      # Log in to Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -34,7 +34,3 @@ jobs:
           tags: |
             denizenn/discord-wheel-of-games:latest
             denizenn/discord-wheel-of-games:${{ github.event.release.tag_name }}
-
-      # Optional: Notify on successful build
-      - name: Notify success
-        run: echo "Docker image built and pushed successfully for release ${{ github.event.release.tag_name }}!"

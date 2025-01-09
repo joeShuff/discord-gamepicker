@@ -17,12 +17,24 @@ Choose a game to play!
 #### Parameters:
 - `player_count`: **Required** – The number of players needed for the game. (e.g., 2, 4, 8)
 - `ignore_least_played`: **Optional** – A boolean flag to choose games other than the least played games. (default: `False`)
+- `event_day`: **Optional** - Override the day the gaming session will be scheduled for. By default it does *next wednesday*. Formatted dd/MMM (e.g. 13/Sep)
+- `force_game`: **Optional** - Force a game to be chosen. Helpful if something goes wrong and you want to spin again. Or for rigging if you decided outside of the wheel and need to add a record that the game was chosen.
 
 #### Functionality
 1. The bot will spin a wheel with eligible games based on the player count.
 2. You will be asked to confirm the selected game.
 3. If the game isn't suitable, you can choose another by rejecting the current selection.
-4. Once confirmed, an event can be scheduled for the game.
+4. Once confirmed, an event will be scheduled for the game.
+
+### `/availabilitypoll`
+This command send a Poll in the channel for people to vote on their availability to game on a specific date.
+
+This will create a poll that ends 1 week before the game date (or on the game date if 1 week before is in the past)
+
+The max duration that a Poll can be is 31 days. So if you schedule further than that, the poll will end early.
+
+#### Parameters:
+- `event_day`: **Required** The day that the gaming session will happen. Format dd/MMM (e.g 13/Sep)
 
 ### `/wipegamememory`
 Mark a game log as ignored. This means that this play record won't count toward "times played" for a game.
