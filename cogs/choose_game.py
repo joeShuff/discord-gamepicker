@@ -123,7 +123,8 @@ class ConfirmChoice(ui.View):
         if scheduled_event:
             await interaction.message.edit(
                 content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
-                view=None
+                view=None,
+                embed=None
             )
         else:
             await interaction.message.edit(
