@@ -1,3 +1,8 @@
+<div style="position: relative; text-align: center;">
+  <img src="/art/cropped_banner.png" alt="Banner" style="width: 100%; display: block;" />
+  <img src="/art/icon.png" alt="Icon" style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); width: 150px; />
+</div>
+
 # Wheel of Games Bot 🎉🎮
 
 ## Description
