@@ -1,7 +1,9 @@
-<div style="position: relative; text-align: center;">
-  <img src="/art/cropped_banner.png" alt="Banner" style="width: 100%; display: block;" />
-  <img src="/art/icon.png" alt="Icon" 
-       style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 150px; border-radius: 50%; border: 3px solid white;" />
+<div align="center">
+  <img src="./art/banner.png" alt="Banner" style="width: 100%; height: 250px; object-fit: cover; display: block;" />
+</div>
+
+<div align="center">
+   <img src="./art/icon.png" alt="Icon" style="transform: translate(-0%, -50%); width: 150px;" />
 </div>
 
 # Wheel of Games Bot 🎉🎮
