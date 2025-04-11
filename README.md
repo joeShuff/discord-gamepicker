@@ -1,3 +1,11 @@
+<div align="center">
+  <img src="./art/banner.png" alt="Banner" style="width: 100%; height: 250px; object-fit: cover; display: block;" />
+</div>
+
+<div align="center">
+   <img src="./art/icon.png" alt="Icon" style="transform: translate(-0%, -50%); width: 150px;" />
+</div>
+
 # Wheel of Games Bot 🎉🎮
 
 ## Description
