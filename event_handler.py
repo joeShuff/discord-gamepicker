@@ -11,7 +11,7 @@ async def schedule_game_event(interaction, game, event_day=None):
     guild = interaction.guild
 
     # Extract details from the game
-    game_id, name, steam_link, banner_link, *_ = game
+    game_id, name, steam_link, banner_link, times_played, min_players, max_players, *_ = game
 
     now = utcnow()
     event_start = now
@@ -59,7 +59,7 @@ async def schedule_game_event(interaction, game, event_day=None):
             name=f"🎮 {name}",
             start_time=event_start,
             end_time=event_end,
-            description=f"Join us to play {name}! {'[Steam Page](' + steam_link + ')' if steam_link else ''}",
+            description=f"Join us to play {name}! This game supports {min_players}-{max_players} players. {'[Steam Page](' + steam_link + ')' if steam_link else ''}",
             entity_type=EntityType.voice,  # Voice channel event
             channel=voice_channel,  # Associate event with the first available voice channel
             image=event_image,  # Use the fetched image or None if no image

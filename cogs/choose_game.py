@@ -27,8 +27,9 @@ def create_wheel_for_discord(games, winning_index, filename):
 
 # Embed for displaying chosen game
 def create_game_embed(game):
-    game_id, name, steam_link, banner_link, *rest = game
+    game_id, name, steam_link, banner_link, times_played, min_players, max_players, *rest = game
     embed = Embed(title=f"Chosen Game: {name}", color=discord.Color.green())
+    embed.add_field(name="Supported players", value=f"{min_players} - {max_players}", inline=False)
     if steam_link:
         embed.add_field(name="Steam Link", value=steam_link, inline=False)
     if banner_link:
@@ -197,7 +198,7 @@ class ChooseGameCommand(commands.Cog):
         game_options, chosen_game = pick_game(games)
 
         if force_game:
-            server_games = get_all_server_games(server_id)  # Assuming a function to get all games
+            server_games = get_all_server_games(server_id)
             matching_game = next((game for game in server_games if game[1].lower() == force_game.lower()), None)
 
             if not matching_game:

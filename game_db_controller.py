@@ -82,7 +82,7 @@ def get_all_server_games(server_id):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-               COUNT(game_log.id) AS times_played
+               COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
             FROM game_list
             LEFT JOIN game_log 
                 ON game_list.id = game_log.game_id 
@@ -101,7 +101,9 @@ def get_all_games_display(server_id):
             SELECT 
                 game_list.name, 
                 MAX(game_log.chosen_at) AS last_played, 
-                COUNT(game_log.id) AS times_played
+                COUNT(game_log.id) AS times_played,
+                game_list.min_players,
+                game_list.max_players
             FROM game_list
             LEFT JOIN game_log 
                 ON game_list.id = game_log.game_id 
@@ -128,7 +130,7 @@ def get_eligible_games(server_id, player_count):
     with db_connect() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, name, steam_link, banner_link
+            SELECT id, name, steam_link, banner_link, min_players, max_players
             FROM game_list
             WHERE server_id = ? AND min_players <= ? AND max_players >= ?
         """, (server_id, player_count, player_count))
@@ -141,7 +143,7 @@ def get_least_played_games(server_id, player_count):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-                   COUNT(game_log.id) AS times_played
+                   COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
             FROM game_list
             LEFT JOIN game_log 
                 ON game_list.id = game_log.game_id 
@@ -227,7 +229,9 @@ def get_games_by_player_count(server_id, player_count):
                         SELECT 
                             game_list.name, 
                             MAX(game_log.chosen_at) AS last_played, 
-                            COUNT(game_log.id) AS times_played
+                            COUNT(game_log.id) AS times_played,
+                            game_list.min_players,
+                            game_list.max_players
                         FROM game_list
                         LEFT JOIN game_log 
                             ON game_list.id = game_log.game_id 
