@@ -32,11 +32,11 @@ class ListGamesCommand(commands.Cog):
 
         embed = Embed(title=embed_title, color=discord.Color.blue())
         for game in games:
-            name, last_played, times_played = game
+            name, last_played, times_played, min_players, max_players = game
             last_played = last_played or "Never"
             embed.add_field(
                 name=name,
-                value=f"Last Played: {last_played}\nTimes Played: {times_played}",
+                value=f"Last Played: {last_played}\nTimes Played: {times_played}\nPlayer Count: {min_players} - {max_players}",
                 inline=False,
             )
 
