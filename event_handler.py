@@ -1,5 +1,5 @@
 import datetime
-from discord.utils import utcnow, MISSING
+from discord.utils import MISSING
 from discord import EntityType
 from discord import PrivacyLevel
 
@@ -13,7 +13,7 @@ async def schedule_game_event(interaction, game, event_day=None):
     # Extract details from the game
     game_id, name, steam_link, banner_link, times_played, min_players, max_players, *_ = game
 
-    now = utcnow()
+    now = datetime.datetime.now().astimezone()
     event_start = now
 
     # If event_day is provided, validate and parse it

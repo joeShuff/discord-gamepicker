@@ -120,6 +120,9 @@ class ConfirmChoice(ui.View):
 
     @ui.button(label="Aye, we'll play this one.", style=discord.ButtonStyle.success)
     async def confirm(self, interaction: Interaction, button: ui.Button):
+        # Immediately remove ability to click on the message because this can lead to double presses
+        await interaction.message.edit(content=f"Game confirmed, creating event...", view=None, embed=None)
+
         log_game_selection(self.current_game[0])
         scheduled_event = await schedule_game_event(interaction, self.current_game, self.event_day)
         if scheduled_event:
