@@ -1,5 +1,5 @@
 import datetime
-from discord.utils import utcnow, MISSING
+from discord.utils import MISSING
 from discord import EntityType
 from discord import PrivacyLevel
 
