@@ -82,7 +82,7 @@ def get_all_server_games(server_id):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-               COUNT(game_log.id) AS times_played
+               COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
             FROM game_list
             LEFT JOIN game_log 
                 ON game_list.id = game_log.game_id 
@@ -143,7 +143,7 @@ def get_least_played_games(server_id, player_count):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-                   COUNT(game_log.id) AS times_played
+                   COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
             FROM game_list
             LEFT JOIN game_log 
                 ON game_list.id = game_log.game_id 
