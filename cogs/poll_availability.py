@@ -26,7 +26,7 @@ class PollAvailabilityCommand(commands.Cog):
                 )
                 return
 
-        now = discord.utils.utcnow()
+        now = datetime.datetime.now().astimezone()
         event_date = date_util.convert_input_to_date(event_day)
 
         poll_end_date = event_date - datetime.timedelta(weeks=1)
