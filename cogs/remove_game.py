@@ -2,7 +2,8 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from game_db_controller import remove_game_from_db, fetch_game_from_db, get_all_games_display, fetch_game_names
+from db.database import remove_game_from_db
+from game_db_controller import fetch_game_from_db, get_all_games_display, fetch_game_names
 
 
 class ConfirmRemove(ui.View):
@@ -15,8 +16,8 @@ class ConfirmRemove(ui.View):
     @ui.button(label="Yes, remove", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: Interaction, button: ui.Button):
         server_id = str(interaction.guild.id)
-        affected_rows = remove_game_from_db(server_id, self.game_name)
-        if affected_rows > 0:
+        successful_removal = remove_game_from_db(server_id, self.game_name)
+        if successful_removal:
             await interaction.response.edit_message(
                 content=f"'{self.game_name}' has been successfully removed.",
                 embed=None,

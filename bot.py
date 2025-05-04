@@ -4,6 +4,7 @@ import os
 import discord
 from discord.ext import commands
 
+from db import database
 from game_db_controller import *
 
 
@@ -72,6 +73,7 @@ async def main():
         if not TOKEN:
             raise EnvironmentError("DISCORD_BOT_TOKEN environment variable is missing.")
 
+        database.initialize_database()
         initialize_database()
         await load_cogs()
         await bot.start(TOKEN)
