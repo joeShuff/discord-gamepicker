@@ -45,37 +45,6 @@ def db_connect():
     return sqlite3.connect(DB_PATH)
 
 
-def add_game_to_db(server_id, name, min_players, max_players, steam_link=None, banner_link=None):
-    """Add a game to the database."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO game_list (server_id, name, min_players, max_players, steam_link, banner_link)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (server_id, name, min_players, max_players, steam_link, banner_link),
-        )
-
-
-def remove_game_from_db(server_id, name):
-    """Remove a game from the database."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "DELETE FROM game_list WHERE server_id = ? AND name = ?", (server_id, name)
-        )
-        return cursor.rowcount  # Returns the number of rows affected
-
-
-def fetch_game_from_db(server_id, name):
-    # Query the database to find the game
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        query = "SELECT name, banner_link FROM game_list WHERE server_id = ? AND name = ?"
-        return cursor.execute(query, (server_id, name)).fetchone()
-
-
 def get_all_server_games(server_id):
     """Retrieve all games for a server."""
     with db_connect() as conn:

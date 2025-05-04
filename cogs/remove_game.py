@@ -2,8 +2,8 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from db.database import remove_game_from_db
-from game_db_controller import fetch_game_from_db, get_all_games_display, fetch_game_names
+from db.database import remove_game_from_db, fetch_game_from_db
+from game_db_controller import get_all_games_display, fetch_game_names
 
 
 class ConfirmRemove(ui.View):
@@ -49,12 +49,12 @@ class RemoveGameCommand(commands.Cog):
 
         # Fetch game details from the database (replace this with your actual query)
         game = fetch_game_from_db(server_id, name)
-        if not game:
+        if game is None:
             await interaction.response.send_message("Error: No such game found.", ephemeral=True)
             return
 
-        game_name = game[0]
-        banner_url = game[1]
+        game_name = game.name
+        banner_url = game.banner_link
 
         # Create an embed for confirmation
         embed = Embed(title="Confirm Game Removal", description=f"Are you sure you want to remove **{game_name}**?")

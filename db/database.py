@@ -57,3 +57,17 @@ def remove_game_from_db(server_id: str, name: str) -> bool:
         raise e
     finally:
         session.close()
+
+
+def fetch_game_from_db(server_id: str, name: str) -> Game:
+    """Fetch the full Game object by server ID and name"""
+    session = SessionLocal()
+    try:
+        game = session.query(Game).filter_by(
+            server_id=server_id,
+            name=name
+        ).first()
+        return game  # Returns a Game instance or None
+    finally:
+        session.close()
+

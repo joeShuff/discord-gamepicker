@@ -5,7 +5,8 @@ from discord import Interaction, ui
 from discord.ext import commands
 from discord.ui import Button
 
-from game_db_controller import fetch_game_from_db, mark_game_logs_as_ignored, fetch_game_names, fetch_log_dates_for_game
+from db.database import fetch_game_from_db
+from game_db_controller import mark_game_logs_as_ignored, fetch_game_names, fetch_log_dates_for_game
 
 
 # Confirmation View with Buttons
@@ -49,7 +50,7 @@ class GameWipeMemoryCog(commands.Cog):
         server_id = str(interaction.guild.id)
 
         game = fetch_game_from_db(server_id, game_name)
-        if not game:
+        if game is None:
             await interaction.response.send_message("Error: No such game found.", ephemeral=True)
             return
 
