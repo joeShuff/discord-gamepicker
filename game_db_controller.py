@@ -45,23 +45,6 @@ def db_connect():
     return sqlite3.connect(DB_PATH)
 
 
-def get_all_server_games(server_id):
-    """Retrieve all games for a server."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-               COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
-            FROM game_list
-            LEFT JOIN game_log 
-                ON game_list.id = game_log.game_id 
-                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
-            WHERE game_list.server_id = ? 
-            GROUP BY game_list.id
-            """, (server_id,))
-        return cursor.fetchall()
-
-
 def get_all_games_display(server_id):
     """Retrieve all games for a server."""
     with db_connect() as conn:
@@ -92,38 +75,6 @@ def fetch_game_names(server_id):
             WHERE server_id = ?
         """, (server_id,))
         return [row[0] for row in cursor.fetchall()]
-
-
-def get_eligible_games(server_id, player_count):
-    """Retrieve games that match the player count."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, name, steam_link, banner_link, min_players, max_players
-            FROM game_list
-            WHERE server_id = ? AND min_players <= ? AND max_players >= ?
-        """, (server_id, player_count, player_count))
-        return cursor.fetchall()
-
-
-def get_least_played_games(server_id, player_count):
-    """Retrieve the least played games that match the player count."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT game_list.id, game_list.name, game_list.steam_link, game_list.banner_link, 
-                   COUNT(game_log.id) AS times_played, game_list.min_players, game_list.max_players
-            FROM game_list
-            LEFT JOIN game_log 
-                ON game_list.id = game_log.game_id 
-                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
-            WHERE game_list.server_id = ? 
-              AND game_list.min_players <= ? 
-              AND game_list.max_players >= ?
-            GROUP BY game_list.id
-            ORDER BY times_played ASC
-        """, (server_id, player_count, player_count))
-        return cursor.fetchall()
 
 
 def log_game_selection(game_id):

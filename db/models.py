@@ -1,8 +1,30 @@
+from dataclasses import dataclass
+from typing import Optional, List
+
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean, TIMESTAMP
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
 Base = declarative_base()
+
+
+@dataclass
+class GameWithPlayHistory:
+    id: int
+    server_id: str
+    name: str
+    min_players: int
+    max_players: int
+    steam_link: Optional[str]
+    banner_link: Optional[str]
+    play_history: List[datetime]
+
+    def __eq__(self, other):
+        if not isinstance(other, GameWithPlayHistory):
+            return NotImplemented
+        return (
+                self.id == other.id
+        )
 
 
 class Game(Base):

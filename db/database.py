@@ -1,10 +1,12 @@
 import os
+from datetime import datetime
+from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
 
-from db.models import Base, Game
+from db.models import Base, Game, GameWithPlayHistory, GameLog
 
 DB_PATH = os.path.join(os.getcwd(), "config", "games.db")
 DATABASE_URL = f"sqlite:///{DB_PATH}"
@@ -59,7 +61,7 @@ def remove_game_from_db(server_id: str, name: str) -> bool:
         session.close()
 
 
-def fetch_game_from_db(server_id: str, name: str) -> Game:
+def fetch_game_from_db(server_id: str, name: str) -> Optional[Game]:
     """Fetch the full Game object by server ID and name"""
     session = SessionLocal()
     try:
@@ -71,3 +73,66 @@ def fetch_game_from_db(server_id: str, name: str) -> Game:
     finally:
         session.close()
 
+
+def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
+    """Retrieve all games for a server, including play history as a list of datetimes."""
+    session = SessionLocal()
+    try:
+        games = (
+            session.query(Game)
+            .filter(Game.server_id == server_id)
+            .all()
+        )
+
+        game_ids = [game.id for game in games]
+
+        # Fetch play history for all games at once
+        logs = (
+            session.query(GameLog.game_id, GameLog.chosen_at)
+            .filter(GameLog.game_id.in_(game_ids))
+            .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+            .order_by(GameLog.chosen_at.asc())
+            .all()
+        )
+
+        # Organize logs by game_id
+        history_map: dict[int, List[datetime]] = {}
+        for game_id, timestamp in logs:
+            history_map.setdefault(game_id, []).append(timestamp)
+
+        # Build result
+        result = []
+        for game in games:
+            result.append(GameWithPlayHistory(
+                id=game.id,
+                server_id=game.server_id,
+                name=game.name,
+                min_players=game.min_players,
+                max_players=game.max_players,
+                steam_link=game.steam_link,
+                banner_link=game.banner_link,
+                play_history=history_map.get(game.id, [])
+            ))
+
+        return result
+    finally:
+        session.close()
+
+
+def get_eligible_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:
+    """Retrieve games that match the player count by filtering existing server games."""
+    all_games = get_all_server_games(server_id)
+    return [
+        game for game in all_games
+        if game.min_players <= player_count <= game.max_players
+    ]
+
+
+def get_least_played_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:
+    """Retrieve the least played games that match the player count."""
+    all_games = get_all_server_games(server_id)
+    eligible_games = [
+        game for game in all_games
+        if game.min_players <= player_count <= game.max_players
+    ]
+    return sorted(eligible_games, key=lambda g: len(g.play_history))

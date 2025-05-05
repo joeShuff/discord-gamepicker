@@ -1,19 +1,20 @@
 import asyncio
 import random
-from datetime import datetime, timedelta
+from typing import List
 
 import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
+from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games
+from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
-from game_db_controller import log_game_selection, get_eligible_games, get_least_played_games, get_all_games_display, \
-    get_all_server_games, fetch_game_names
+from game_db_controller import log_game_selection, fetch_game_names
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
 
-def create_wheel_for_discord(games, winning_index, filename):
+def create_wheel_for_discord(games: List[str], winning_index: int, filename: str) -> tuple[discord.File, int]:
     generate_wheel_of_games(games, winning_index, filename)
 
     # Calculate GIF duration dynamically
@@ -26,32 +27,32 @@ def create_wheel_for_discord(games, winning_index, filename):
 
 
 # Embed for displaying chosen game
-def create_game_embed(game):
-    game_id, name, steam_link, banner_link, times_played, min_players, max_players, *rest = game
-    embed = Embed(title=f"Chosen Game: {name}", color=discord.Color.green())
-    embed.add_field(name="Supported players", value=f"{min_players} - {max_players}", inline=False)
-    if steam_link:
-        embed.add_field(name="Steam Link", value=steam_link, inline=False)
-    if banner_link:
-        embed.set_image(url=banner_link)
+def create_game_embed(game: GameWithPlayHistory):
+    embed = Embed(title=f"Chosen Game: {game.name}", color=discord.Color.green())
+    embed.add_field(name="Supported players", value=f"{game.min_players} - {game.max_players}", inline=False)
+    if game.steam_link:
+        embed.add_field(name="Steam Link", value=game.steam_link, inline=False)
+    if game.banner_link:
+        embed.set_image(url=game.banner_link)
     return embed
 
 
 # Function to choose a game randomly
-def pick_game(games, exclude_game_id=None, ignore_choosing_least_played=False):
+def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_choosing_least_played=False) -> \
+tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
     if not ignore_choosing_least_played:
-        # Filter games to include only those with the least number of times played
+        # Filter games to include only those with the least  number of times played
         # Assuming the 5th element (index 4) is the play count
-        min_play_count = min(game[4] for game in games)  # Find the minimum play count
-        games = [game for game in games if game[4] == min_play_count]  # Only include least played games
+        min_play_count = min(len(game.play_history) for game in games)  # Find the minimum play count
+        games = [game for game in games if len(game.play_history) == min_play_count]  # Only include least played games
 
-    # If there's only one game left in the list after filtering and it's the one we excluded, return it
-    if len(games) == 1 and exclude_game_id and games[0][0] == exclude_game_id:
-        return games[0]
+    # If there's only one game left in the list after filtering, and it's the one we excluded, return it
+    if len(games) == 1 and exclude_game_id and games[0].id == exclude_game_id:
+        return games, games[0]
 
     if exclude_game_id:
         # Filter out the game with the ID we want to exclude
-        games = [game for game in games if game[0] != exclude_game_id]
+        games = [game for game in games if game.id != exclude_game_id]
 
     # Pick a random game from the filtered list
     if games:
@@ -96,8 +97,8 @@ class ConfirmChoice(ui.View):
         # Generate the GIF
         winning_index = game_options.index(chosen_game)
         file_name = "wheel_of_games.gif"
-        games = [game[1] for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
+        game_names = [game.name for game in game_options]
+        gif_file, gif_duration = create_wheel_for_discord(game_names, winning_index, file_name)
 
         # Send the new spinning wheel GIF and remove the old one
         await self.gif_message.delete()
@@ -123,7 +124,7 @@ class ConfirmChoice(ui.View):
         # Immediately remove ability to click on the message because this can lead to double presses
         await interaction.message.edit(content=f"Game confirmed, creating event...", view=None, embed=None)
 
-        log_game_selection(self.current_game[0])
+        log_game_selection(self.current_game.id)
         scheduled_event = await schedule_game_event(interaction, self.current_game, self.event_day)
         if scheduled_event:
             await interaction.message.edit(
@@ -172,79 +173,78 @@ class ChooseGameCommand(commands.Cog):
             event_day: str = None,
             force_game: str = None
     ):
-        server_id = str(interaction.guild.id)
+        try:
+            server_id = str(interaction.guild.id)
 
-        if event_day:
-            try:
-                date_util.check_valid_input_date(event_day)
-            except ValueError:
-                await interaction.response.send_message(
-                    f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
-                    ephemeral=True
-                )
+            if event_day:
+                try:
+                    date_util.check_valid_input_date(event_day)
+                except ValueError:
+                    await interaction.response.send_message(
+                        f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
+                        ephemeral=True
+                    )
+                    return
+
+            # Fetch games
+            games = get_eligible_games(server_id, player_count)
+
+            if not ignore_least_played:
+                games = get_least_played_games(server_id, player_count)
+
+            if not games:
+                await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
                 return
 
-        # Fetch games
-        games = get_eligible_games(server_id, player_count)
-        if not games:
-            await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
-            return
+            # Pick a game
+            game_options, chosen_game = pick_game(games)
 
-        if not ignore_least_played:
-            games = get_least_played_games(server_id, player_count)
+            if force_game:
+                matching_game = fetch_game_from_db(server_id, force_game)
 
-        if not games:
-            await interaction.response.send_message("No eligible games found.", ephemeral=True)
-            return
+                if matching_game is None:
+                    await interaction.response.send_message(
+                        f"The specified game `{force_game}` was not found.",
+                        ephemeral=True,
+                    )
+                    return
 
-        # Pick a game
-        game_options, chosen_game = pick_game(games)
+                if matching_game not in game_options:
+                    print(f"forced game {force_game} isn't in options list, adding it")
+                    game_options.append(matching_game)
 
-        if force_game:
-            server_games = get_all_server_games(server_id)
-            matching_game = next((game for game in server_games if game[1].lower() == force_game.lower()), None)
+                chosen_game = matching_game
 
-            if not matching_game:
-                await interaction.response.send_message(
-                    f"The specified game `{force_game}` was not found or is ineligible.",
-                    ephemeral=True,
-                )
+            if not chosen_game:
+                await interaction.response.send_message("No games available to choose from.", ephemeral=True)
                 return
 
-            if matching_game not in game_options:
-                print(f"forced game {force_game} isn't in options list, adding it")
-                game_options.append(matching_game)
+            # Respond to the interaction
+            await interaction.response.send_message(
+                f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
 
-            chosen_game = matching_game
+            # Generate the GIF
+            winning_index = game_options.index(chosen_game)
+            file_name = "wheel_of_games.gif"
+            games = [game.name for game in game_options]
+            gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
 
-        if not chosen_game:
-            await interaction.response.send_message("No games available to choose from.", ephemeral=True)
-            return
+            # Send the spinning wheel GIF
+            gif_message = await interaction.followup.send(
+                content="🎉 The wheel is spinning... hold tight!",
+                file=gif_file,
+                ephemeral=False
+            )
 
-        # Respond to the interaction
-        await interaction.response.send_message(
-            f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
+            await asyncio.sleep(gif_duration)
 
-        # Generate the GIF
-        winning_index = game_options.index(chosen_game)
-        file_name = "wheel_of_games.gif"
-        games = [game[1] for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
-
-        # Send the spinning wheel GIF
-        gif_message = await interaction.followup.send(
-            content="🎉 The wheel is spinning... hold tight!",
-            file=gif_file,
-            ephemeral=False
-        )
-
-        await asyncio.sleep(gif_duration)
-
-        # Send the embed with buttons
-        embed = create_game_embed(chosen_game)
-        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
-                             event_day)
-        await interaction.followup.send(embed=embed, view=view)
+            # Send the embed with buttons
+            embed = create_game_embed(chosen_game)
+            view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
+                                 event_day)
+            await interaction.followup.send(embed=embed, view=view)
+        except Exception as e:
+            print(e)
 
     @choose_game.autocomplete("event_day")
     async def autocomplete_event_day(self, interaction: Interaction, current: str):
