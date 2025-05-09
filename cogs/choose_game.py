@@ -6,10 +6,10 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games
+from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games, get_all_server_games
 from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
-from game_db_controller import log_game_selection, fetch_game_names
+from game_db_controller import log_game_selection
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
@@ -263,11 +263,11 @@ class ChooseGameCommand(commands.Cog):
     async def autocomplete_force_game(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names."""
         server_id = str(interaction.guild.id)
-        game_names = fetch_game_names(server_id)  # Fetch a list of game names from the database
+        game_names = get_all_server_games(server_id)  # Fetch a list of game names from the database
 
         return [
-            discord.app_commands.Choice(name=game, value=game)
-            for game in game_names if current.lower() in game.lower()
+            discord.app_commands.Choice(name=game.name, value=game.name)
+            for game in game_names if current.lower() in game.name.lower()
         ]
 
 

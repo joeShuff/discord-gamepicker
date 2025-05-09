@@ -44,39 +44,6 @@ def db_connect():
     """Connect to the SQLite database."""
     return sqlite3.connect(DB_PATH)
 
-
-def get_all_games_display(server_id):
-    """Retrieve all games for a server."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                game_list.name, 
-                MAX(game_log.chosen_at) AS last_played, 
-                COUNT(game_log.id) AS times_played,
-                game_list.min_players,
-                game_list.max_players
-            FROM game_list
-            LEFT JOIN game_log 
-                ON game_list.id = game_log.game_id 
-                AND (game_log.ignored IS NULL OR game_log.ignored = 0)
-            WHERE game_list.server_id = ?
-            GROUP BY game_list.id
-            ORDER BY last_played ASC NULLS FIRST
-        """, (server_id,))
-        return cursor.fetchall()
-
-
-def fetch_game_names(server_id):
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT name FROM game_list
-            WHERE server_id = ?
-        """, (server_id,))
-        return [row[0] for row in cursor.fetchall()]
-
-
 def log_game_selection(game_id):
     """Log the selection of a game."""
     with db_connect() as conn:

@@ -5,8 +5,8 @@ from discord import Interaction, ui
 from discord.ext import commands
 from discord.ui import Button
 
-from db.database import fetch_game_from_db
-from game_db_controller import mark_game_logs_as_ignored, fetch_game_names, fetch_log_dates_for_game
+from db.database import fetch_game_from_db, get_all_server_games
+from game_db_controller import mark_game_logs_as_ignored, fetch_log_dates_for_game
 
 
 # Confirmation View with Buttons
@@ -86,11 +86,11 @@ class GameWipeMemoryCog(commands.Cog):
     async def autocomplete_games(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names."""
         server_id = str(interaction.guild.id)
-        game_names = fetch_game_names(server_id)  # Fetch a list of game names from the database
+        game_names = get_all_server_games(server_id)  # Fetch a list of game names from the database
 
         return [
-            discord.app_commands.Choice(name=game, value=game)
-            for game in game_names if current.lower() in game.lower()
+            discord.app_commands.Choice(name=game.name, value=game.name)
+            for game in game_names if current.lower() in game.name.lower()
         ]
 
     @wipe_game_memory.autocomplete("memory_date")
