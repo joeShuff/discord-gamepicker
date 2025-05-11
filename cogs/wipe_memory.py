@@ -5,7 +5,7 @@ from discord import Interaction, ui
 from discord.ext import commands
 from discord.ui import Button
 
-from db.database import fetch_game_from_db, get_all_server_games
+from db.database import fetch_game_from_db, get_all_server_games, fetch_game_with_memory
 from game_db_controller import mark_game_logs_as_ignored, fetch_log_dates_for_game
 
 
@@ -56,7 +56,9 @@ class GameWipeMemoryCog(commands.Cog):
 
         # Fetch available log dates for the game if memory_date is provided
         if memory_date:
-            available_dates = fetch_log_dates_for_game(server_id, game_name)
+            game = fetch_game_with_memory(server_id, game_name)
+            available_dates = [dt.strftime("%d %b %Y %H:%M") for dt in game.play_history]
+
             if memory_date not in available_dates:
                 await interaction.response.send_message(
                     f"Error: No log found for '{game_name}' on {memory_date}.", ephemeral=True
@@ -96,22 +98,26 @@ class GameWipeMemoryCog(commands.Cog):
     @wipe_game_memory.autocomplete("memory_date")
     async def memory_date_autocomplete(self, interaction: Interaction, current: str):
         """Autocomplete function for memory dates based on the game name."""
-        server_id = str(interaction.guild.id)
+        try:
+            server_id = str(interaction.guild.id)
 
-        # Retrieve the game_name option from the current interaction
-        game_name = interaction.namespace.game_name
+            # Retrieve the game_name option from the current interaction
+            game_name = interaction.namespace.game_name
 
-        print(f"game name is {game_name}")
+            # Fetch available log dates for the specified game
+            game = fetch_game_with_memory(server_id, game_name)
+            available_dates = [dt.strftime("%d %b %Y %H:%M") for dt in game.play_history]
 
-        # Fetch available log dates for the specified game
-        available_dates = fetch_log_dates_for_game(server_id, game_name)
+            print(available_dates)
 
-        # Filter dates that start with the current string typed by the user
-        return [
-            discord.app_commands.Choice(name=datetime.strptime(date, "%Y-%m-%d %H:%M:%S").strftime("%d %b %Y %H:%M"),
-                                        value=date)
-            for date in available_dates if date.startswith(current)
-        ]
+            # Filter dates that start with the current string typed by the user
+            return [
+                discord.app_commands.Choice(name=date,
+                                            value=date)
+                for date in available_dates if date.startswith(current)
+            ]
+        except Exception as e:
+            print(e)
 
 
 # Add the cog to the bot

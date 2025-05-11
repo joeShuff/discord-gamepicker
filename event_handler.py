@@ -1,14 +1,20 @@
 import datetime
+from typing import Optional
+
 from discord.utils import MISSING
-from discord import EntityType
+from discord import EntityType, ScheduledEvent
 from discord import PrivacyLevel
 
 from db.models import GameWithPlayHistory
 from util import date_util
 
 
-async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=None):
-    """Schedules a Discord event for the chosen game."""
+async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=None) -> tuple[ScheduledEvent, datetime.datetime]:
+    """
+    Schedules a Discord event for the chosen game.
+
+    returns the start time of the event
+    """
     guild = interaction.guild
 
     now = datetime.datetime.now().astimezone()
@@ -23,7 +29,7 @@ async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=
                 f"Invalid date format for event_day: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
                 ephemeral=True
             )
-            return
+            return None
     else:
         # Default to the next Wednesday at 8 PM UTC
         event_start = date_util.get_next_day_occurrence()
@@ -37,7 +43,7 @@ async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=
             await interaction.response.send_message(
                 "Could not schedule event: No voice channels found.", ephemeral=True
             )
-            return
+            return None
 
         # Handle image fetch if banner_link is provided
         event_image = MISSING
@@ -50,7 +56,7 @@ async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=
                 await interaction.response.send_message(
                     f"Error fetching image: {e}", ephemeral=True
                 )
-                return
+                return None
 
         # Create the scheduled event
         scheduled_event = await guild.create_scheduled_event(
@@ -64,7 +70,8 @@ async def schedule_game_event(interaction, game: GameWithPlayHistory, event_day=
             privacy_level=PrivacyLevel.guild_only,
             reason="Created for chosen scheduled game"
         )
-        return scheduled_event
+
+        return scheduled_event, event_start
     except Exception as e:
         await interaction.response.send_message(
             f"Failed to schedule the event: {e}", ephemeral=True

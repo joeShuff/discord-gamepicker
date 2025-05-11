@@ -6,10 +6,10 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games, get_all_server_games
+from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games, get_all_server_games, \
+    log_game_selection
 from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
-from game_db_controller import log_game_selection
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
@@ -124,19 +124,24 @@ class ConfirmChoice(ui.View):
         # Immediately remove ability to click on the message because this can lead to double presses
         await interaction.message.edit(content=f"Game confirmed, creating event...", view=None, embed=None)
 
-        log_game_selection(self.current_game.id)
-        scheduled_event = await schedule_game_event(interaction, self.current_game, self.event_day)
-        if scheduled_event:
-            await interaction.message.edit(
-                content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
-                view=None,
-                embed=None
-            )
-        else:
-            await interaction.message.edit(
-                content="Game confirmed, but the event could not be scheduled.",
-                view=None
-            )
+        try:
+            scheduled_event, event_date = await schedule_game_event(interaction, self.current_game, self.event_day)
+
+            log_game_selection(self.current_game.id, event_date)
+
+            if scheduled_event is not None:
+                await interaction.message.edit(
+                    content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
+                    view=None,
+                    embed=None
+                )
+            else:
+                await interaction.message.edit(
+                    content="Game confirmed, but the event could not be scheduled.",
+                    view=None
+                )
+        except Exception as e:
+            print(e)
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):

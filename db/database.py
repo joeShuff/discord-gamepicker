@@ -74,6 +74,44 @@ def fetch_game_from_db(server_id: str, name: str) -> Optional[Game]:
         session.close()
 
 
+def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHistory]:
+    """Fetch a full game with its play history too"""
+    session = SessionLocal()
+    try:
+        game = (
+            session.query(Game)
+            .filter(Game.server_id == server_id)
+            .filter(Game.name == name)
+            .first()
+        )
+
+        if not game:
+            return None
+
+        logs = (
+            session.query(GameLog.chosen_at)
+            .filter(GameLog.game_id == game.id)
+            .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+            .order_by(GameLog.chosen_at.desc())
+            .all()
+        )
+
+        play_history = [log.chosen_at for log in logs]
+
+        return GameWithPlayHistory(
+            id=game.id,
+            server_id=game.server_id,
+            name=game.name,
+            min_players=game.min_players,
+            max_players=game.max_players,
+            steam_link=game.steam_link,
+            banner_link=game.banner_link,
+            play_history=play_history
+        )
+    finally:
+        session.close()
+
+
 def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
     """Retrieve all games for a server, including play history as a list of datetimes."""
     session = SessionLocal()
@@ -91,7 +129,7 @@ def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
             session.query(GameLog.game_id, GameLog.chosen_at)
             .filter(GameLog.game_id.in_(game_ids))
             .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
-            .order_by(GameLog.chosen_at.asc())
+            .order_by(GameLog.chosen_at.desc())
             .all()
         )
 
@@ -136,3 +174,14 @@ def get_least_played_games(server_id: str, player_count: int) -> list[GameWithPl
         if game.min_players <= player_count <= game.max_players
     ]
     return sorted(eligible_games, key=lambda g: len(g.play_history))
+
+
+def log_game_selection(game_id: int, date: datetime = datetime.utcnow()):
+    """Log the selection of a game."""
+    if date is None:
+        date = datetime.utcnow()
+
+    with SessionLocal() as session:
+        new_log = GameLog(game_id=game_id, chosen_at=date)
+        session.add(new_log)
+        session.commit()

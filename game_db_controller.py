@@ -44,14 +44,6 @@ def db_connect():
     """Connect to the SQLite database."""
     return sqlite3.connect(DB_PATH)
 
-def log_game_selection(game_id):
-    """Log the selection of a game."""
-    with db_connect() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO game_log (game_id) VALUES (?)", (game_id,)
-        )
-
 
 def mark_game_logs_as_ignored(server_id, game_name, memory_date=None):
     """Mark game logs as ignored. If memory_date is provided, only mark the specified timestamp; otherwise, mark all logs."""
