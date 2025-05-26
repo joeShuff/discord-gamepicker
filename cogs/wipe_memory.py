@@ -5,29 +5,40 @@ from discord import Interaction, ui
 from discord.ext import commands
 from discord.ui import Button
 
-from db.database import fetch_game_from_db, get_all_server_games, fetch_game_with_memory
-from game_db_controller import mark_game_logs_as_ignored, fetch_log_dates_for_game
+from db.database import fetch_game_from_db, get_all_server_games, fetch_game_with_memory, mark_game_logs_as_ignored
 
 
 # Confirmation View with Buttons
 class ConfirmationView(ui.View):
-    def __init__(self, server_id: str, game_name: str, memory_date: str = None):
+    def __init__(self, server_id: str, game_name: str, memory_epoch: int = None):
         super().__init__()
         self.server_id = server_id
         self.game_name = game_name
-        self.memory_date = memory_date
+        self.memory_epoch = memory_epoch
 
     @discord.ui.button(label="Yes, wipe memory", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: Interaction, button: Button):
         # Call the function to mark the game as ignored
-        mark_game_logs_as_ignored(self.server_id, self.game_name, self.memory_date)
+        memory_date = None
+
+        if self.memory_epoch:
+            memory_date = datetime.fromtimestamp(self.memory_epoch)
+
+        result = mark_game_logs_as_ignored(self.server_id, self.game_name, memory_date)
 
         # Acknowledge the action
-        await interaction.response.edit_message(
-            content="Memory for the game has been wiped successfully.",
-            embed=None,
-            view=None
-        )
+        if result:
+            await interaction.response.edit_message(
+                content="Memory for the game has been wiped successfully.",
+                embed=None,
+                view=None
+            )
+        else:
+            await interaction.response.edit_message(
+                content="There was a problem wiping the memory. Please check logs and report errors or try again.",
+                embed=None,
+                view=None
+            )
 
     @discord.ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: Button):
@@ -44,7 +55,7 @@ class GameWipeMemoryCog(commands.Cog):
 
     # Command to wipe memory for a game
     @discord.app_commands.command(name="wipegamememory", description="Clear game log memory for a game")
-    async def wipe_game_memory(self, interaction: Interaction, game_name: str, memory_date: str = None):
+    async def wipe_game_memory(self, interaction: Interaction, game_name: str, memory_date: int = None):
         """Wipe the memory of a specific game (mark entries as ignored)."""
         # Fetch the game details to confirm it exists
         server_id = str(interaction.guild.id)
@@ -54,14 +65,19 @@ class GameWipeMemoryCog(commands.Cog):
             await interaction.response.send_message("Error: No such game found.", ephemeral=True)
             return
 
+        memory_datetime = None
+        parsed_date = None
+
         # Fetch available log dates for the game if memory_date is provided
         if memory_date:
             game = fetch_game_with_memory(server_id, game_name)
+            memory_datetime = datetime.fromtimestamp(memory_date)
+            parsed_date = memory_datetime.strftime("%d %b %Y %H:%M")
             available_dates = [dt.strftime("%d %b %Y %H:%M") for dt in game.play_history]
 
-            if memory_date not in available_dates:
+            if parsed_date not in available_dates:
                 await interaction.response.send_message(
-                    f"Error: No log found for '{game_name}' on {memory_date}.", ephemeral=True
+                    f"Error: No log found for '{game_name}' on {parsed_date}.", ephemeral=True
                 )
                 return
 
@@ -70,7 +86,7 @@ class GameWipeMemoryCog(commands.Cog):
 
         # Send confirmation message with buttons
         if memory_date:
-            confirmation_message = f"Are you sure you want to wipe memory for {game_name} on {memory_date}?"
+            confirmation_message = f"Are you sure you want to wipe memory for {game_name} on {parsed_date}?"
         else:
             confirmation_message = f"Are you sure you want to wipe all memory for {game_name}?"
 
@@ -106,15 +122,12 @@ class GameWipeMemoryCog(commands.Cog):
 
             # Fetch available log dates for the specified game
             game = fetch_game_with_memory(server_id, game_name)
-            available_dates = [dt.strftime("%d %b %Y %H:%M") for dt in game.play_history]
-
-            print(available_dates)
 
             # Filter dates that start with the current string typed by the user
             return [
-                discord.app_commands.Choice(name=date,
-                                            value=date)
-                for date in available_dates if date.startswith(current)
+                discord.app_commands.Choice(name=date.strftime("%d %b %Y %H:%M"),
+                                            value=date.timestamp())
+                for date in game.play_history if date.strftime("%d %b %Y %H:%M").startswith(current)
             ]
         except Exception as e:
             print(e)

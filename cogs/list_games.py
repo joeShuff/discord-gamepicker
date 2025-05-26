@@ -2,8 +2,7 @@ import discord
 from discord import Interaction, Embed
 from discord.ext import commands
 
-from db.database import get_all_server_games
-from game_db_controller import get_games_by_player_count
+from db.database import get_all_server_games, get_eligible_games
 
 
 class ListGamesCommand(commands.Cog):
@@ -16,7 +15,7 @@ class ListGamesCommand(commands.Cog):
 
         if player_count:
             # Fetch games filtered by player_count
-            games = get_games_by_player_count(server_id, player_count)
+            games = get_eligible_games(server_id, player_count)
         else:
             # Fetch all games if player_count is not provided
             games = get_all_server_games(server_id)

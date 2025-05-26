@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
 
@@ -185,3 +185,35 @@ def log_game_selection(game_id: int, date: datetime = datetime.utcnow()):
         new_log = GameLog(game_id=game_id, chosen_at=date)
         session.add(new_log)
         session.commit()
+
+
+def mark_game_logs_as_ignored(server_id: str, game_name: str, memory_date: Optional[datetime] = None) -> bool:
+    """Mark game logs as ignored. If memory_date is provided, only mark the specified timestamp; otherwise,
+    mark all logs. """
+    session = SessionLocal()
+    try:
+        game = session.query(Game).filter_by(server_id=server_id, name=game_name).first()
+
+        if not game:
+            return False  # Game not found
+
+        query = session.query(GameLog).filter(GameLog.game_id == game.id)
+
+        if memory_date:
+            query = query.filter(
+                func.strftime('%Y-%m-%d %H:%M:%S', GameLog.chosen_at) ==
+                memory_date.strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            matching_items = query.all()
+
+            if len(matching_items) == 0:
+                print(f"No matching plays for date {memory_date}")
+                return False
+
+        updated_count = query.update({"ignored": 1}, synchronize_session=False)
+        session.commit()
+
+        return updated_count > 0
+    finally:
+        session.close()

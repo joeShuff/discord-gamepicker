@@ -74,7 +74,6 @@ async def main():
             raise EnvironmentError("DISCORD_BOT_TOKEN environment variable is missing.")
 
         database.initialize_database()
-        initialize_database()
         await load_cogs()
         await bot.start(TOKEN)
 
