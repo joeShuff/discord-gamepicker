@@ -37,7 +37,6 @@ class Game(Base):
     min_players = Column(Integer, nullable=False)
     max_players = Column(Integer, nullable=False)
     banner_link = Column(Text, nullable=True)
-    # playcount_offset = Column(Integer, default=0)
 
     logs = relationship("GameLog", back_populates="game", cascade="all, delete-orphan")
 

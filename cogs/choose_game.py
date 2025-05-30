@@ -124,24 +124,21 @@ class ConfirmChoice(ui.View):
         # Immediately remove ability to click on the message because this can lead to double presses
         await interaction.message.edit(content=f"Game confirmed, creating event...", view=None, embed=None)
 
-        try:
-            scheduled_event, event_date = await schedule_game_event(interaction, self.current_game, self.event_day)
+        scheduled_event, event_date = await schedule_game_event(interaction, self.current_game, self.event_day)
 
-            log_game_selection(self.current_game.id, event_date)
+        log_game_selection(self.current_game.id, event_date)
 
-            if scheduled_event is not None:
-                await interaction.message.edit(
-                    content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
-                    view=None,
-                    embed=None
-                )
-            else:
-                await interaction.message.edit(
-                    content="Game confirmed, but the event could not be scheduled.",
-                    view=None
-                )
-        except Exception as e:
-            print(e)
+        if scheduled_event is not None:
+            await interaction.message.edit(
+                content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
+                view=None,
+                embed=None
+            )
+        else:
+            await interaction.message.edit(
+                content="Game confirmed, but the event could not be scheduled.",
+                view=None
+            )
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):
@@ -178,78 +175,75 @@ class ChooseGameCommand(commands.Cog):
             event_day: str = None,
             force_game: str = None
     ):
-        try:
-            server_id = str(interaction.guild.id)
+        server_id = str(interaction.guild.id)
 
-            if event_day:
-                try:
-                    date_util.check_valid_input_date(event_day)
-                except ValueError:
-                    await interaction.response.send_message(
-                        f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
-                        ephemeral=True
-                    )
-                    return
-
-            # Fetch games
-            games = get_eligible_games(server_id, player_count)
-
-            if not ignore_least_played:
-                games = get_least_played_games(server_id, player_count)
-
-            if not games:
-                await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
+        if event_day:
+            try:
+                date_util.check_valid_input_date(event_day)
+            except ValueError:
+                await interaction.response.send_message(
+                    f"Invalid date format for `event_day`: `{event_day}`. Please use the format `dd/MMM` (e.g., `18/Dec`).",
+                    ephemeral=True
+                )
                 return
 
-            # Pick a game
-            game_options, chosen_game = pick_game(games)
+        # Fetch games
+        games = get_eligible_games(server_id, player_count)
 
-            if force_game:
-                matching_game = fetch_game_from_db(server_id, force_game)
+        if not ignore_least_played:
+            games = get_least_played_games(server_id, player_count)
 
-                if matching_game is None:
-                    await interaction.response.send_message(
-                        f"The specified game `{force_game}` was not found.",
-                        ephemeral=True,
-                    )
-                    return
+        if not games:
+            await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
+            return
 
-                if matching_game not in game_options:
-                    print(f"forced game {force_game} isn't in options list, adding it")
-                    game_options.append(matching_game)
+        # Pick a game
+        game_options, chosen_game = pick_game(games)
 
-                chosen_game = matching_game
+        if force_game:
+            matching_game = fetch_game_from_db(server_id, force_game)
 
-            if not chosen_game:
-                await interaction.response.send_message("No games available to choose from.", ephemeral=True)
+            if matching_game is None:
+                await interaction.response.send_message(
+                    f"The specified game `{force_game}` was not found.",
+                    ephemeral=True,
+                )
                 return
 
-            # Respond to the interaction
-            await interaction.response.send_message(
-                f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
+            if matching_game not in game_options:
+                print(f"forced game {force_game} isn't in options list, adding it")
+                game_options.append(matching_game)
 
-            # Generate the GIF
-            winning_index = game_options.index(chosen_game)
-            file_name = "wheel_of_games.gif"
-            games = [game.name for game in game_options]
-            gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
+            chosen_game = matching_game
 
-            # Send the spinning wheel GIF
-            gif_message = await interaction.followup.send(
-                content="🎉 The wheel is spinning... hold tight!",
-                file=gif_file,
-                ephemeral=False
-            )
+        if not chosen_game:
+            await interaction.response.send_message("No games available to choose from.", ephemeral=True)
+            return
 
-            await asyncio.sleep(gif_duration)
+        # Respond to the interaction
+        await interaction.response.send_message(
+            f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
 
-            # Send the embed with buttons
-            embed = create_game_embed(chosen_game)
-            view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
-                                 event_day)
-            await interaction.followup.send(embed=embed, view=view)
-        except Exception as e:
-            print(e)
+        # Generate the GIF
+        winning_index = game_options.index(chosen_game)
+        file_name = "wheel_of_games.gif"
+        games = [game.name for game in game_options]
+        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
+
+        # Send the spinning wheel GIF
+        gif_message = await interaction.followup.send(
+            content="🎉 The wheel is spinning... hold tight!",
+            file=gif_file,
+            ephemeral=False
+        )
+
+        await asyncio.sleep(gif_duration)
+
+        # Send the embed with buttons
+        embed = create_game_embed(chosen_game)
+        view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
+                             event_day)
+        await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
     async def autocomplete_event_day(self, interaction: Interaction, current: str):

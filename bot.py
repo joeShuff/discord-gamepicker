@@ -5,7 +5,6 @@ import discord
 from discord.ext import commands
 
 from db import database
-from game_db_controller import *
 
 
 # Bot setup
