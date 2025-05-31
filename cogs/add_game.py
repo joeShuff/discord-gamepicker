@@ -4,7 +4,8 @@ import discord
 from discord import Interaction
 from discord.ext import commands
 
-from game_db_controller import add_game_to_db
+from db.database import add_game_to_db
+from db.models import Game
 
 
 class AddGameCommand(commands.Cog):
@@ -23,7 +24,15 @@ class AddGameCommand(commands.Cog):
 
         server_id = str(interaction.guild.id)
         try:
-            add_game_to_db(server_id, name, min_players, max_players, steam_link, banner_link)
+            game = Game(
+                server_id=server_id,
+                name=name,
+                min_players=min_players,
+                max_players=max_players,
+                steam_link=steam_link,
+                banner_link=banner_link
+            )
+            add_game_to_db(game)
             await interaction.response.send_message(f"'{name}' has been added to t’list!")
         except sqlite3.IntegrityError:
             await interaction.response.send_message("Error: Game already exists.")
