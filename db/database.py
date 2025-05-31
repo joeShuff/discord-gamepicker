@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Optional
 
@@ -23,15 +24,11 @@ def initialize_database():
     print("Database initialized using SQLAlchemy.")
 
 
+@contextmanager
 def get_session():
-    return SessionLocal()
-
-
-def add_game_to_db(game: Game):
-    session = get_session()
+    session = SessionLocal()
     try:
-        session.add(game)
-        session.commit()
+        yield session
     except Exception as e:
         session.rollback()
         raise e
@@ -39,10 +36,15 @@ def add_game_to_db(game: Game):
         session.close()
 
 
+def add_game_to_db(game: Game):
+    with get_session() as session:
+        session.add(game)
+        session.commit()
+
+
 def remove_game_from_db(server_id: str, name: str) -> bool:
     """Remove a game from the database. Returns True if a row was deleted."""
-    session = SessionLocal()
-    try:
+    with get_session() as session:
         result = session.query(Game).filter(
             and_(
                 Game.server_id == server_id,
@@ -54,30 +56,21 @@ def remove_game_from_db(server_id: str, name: str) -> bool:
             session.commit()
             return True
         return False
-    except Exception as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
 
 
 def fetch_game_from_db(server_id: str, name: str) -> Optional[Game]:
     """Fetch the full Game object by server ID and name"""
-    session = SessionLocal()
-    try:
+    with get_session() as session:
         game = session.query(Game).filter_by(
             server_id=server_id,
             name=name
         ).first()
         return game  # Returns a Game instance or None
-    finally:
-        session.close()
 
 
 def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHistory]:
     """Fetch a full game with its play history too"""
-    session = SessionLocal()
-    try:
+    with get_session() as session:
         game = (
             session.query(Game)
             .filter(Game.server_id == server_id)
@@ -108,14 +101,11 @@ def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHi
             banner_link=game.banner_link,
             play_history=play_history
         )
-    finally:
-        session.close()
 
 
 def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
     """Retrieve all games for a server, including play history as a list of datetimes."""
-    session = SessionLocal()
-    try:
+    with get_session() as session:
         games = (
             session.query(Game)
             .filter(Game.server_id == server_id)
@@ -153,8 +143,6 @@ def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
             ))
 
         return result
-    finally:
-        session.close()
 
 
 def get_eligible_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:
@@ -181,7 +169,7 @@ def log_game_selection(game_id: int, date: datetime = datetime.utcnow()):
     if date is None:
         date = datetime.utcnow()
 
-    with SessionLocal() as session:
+    with get_session() as session:
         new_log = GameLog(game_id=game_id, chosen_at=date)
         session.add(new_log)
         session.commit()
@@ -190,8 +178,7 @@ def log_game_selection(game_id: int, date: datetime = datetime.utcnow()):
 def mark_game_logs_as_ignored(server_id: str, game_name: str, memory_date: Optional[datetime] = None) -> bool:
     """Mark game logs as ignored. If memory_date is provided, only mark the specified timestamp; otherwise,
     mark all logs. """
-    session = SessionLocal()
-    try:
+    with get_session() as session:
         game = session.query(Game).filter_by(server_id=server_id, name=game_name).first()
 
         if not game:
@@ -215,5 +202,3 @@ def mark_game_logs_as_ignored(server_id: str, game_name: str, memory_date: Optio
         session.commit()
 
         return updated_count > 0
-    finally:
-        session.close()
