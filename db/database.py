@@ -99,6 +99,7 @@ def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHi
             max_players=game.max_players,
             steam_link=game.steam_link,
             banner_link=game.banner_link,
+            playcount_offset=game.playcount_offset,
             play_history=play_history
         )
 
@@ -139,6 +140,7 @@ def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
                 max_players=game.max_players,
                 steam_link=game.steam_link,
                 banner_link=game.banner_link,
+                playcount_offset=game.playcount_offset,
                 play_history=history_map.get(game.id, [])
             ))
 
@@ -202,3 +204,19 @@ def mark_game_logs_as_ignored(server_id: str, game_name: str, memory_date: Optio
         session.commit()
 
         return updated_count > 0
+
+
+def get_least_playcount_for_server(server_id: str) -> int:
+    """
+    Returns the lowest number of play history entries for any game in the server.
+    If no games exist or none have play history, returns 0.
+    """
+    games: list[GameWithPlayHistory] = get_all_server_games(server_id)
+
+    if not games:
+        return 0
+
+    # Get play counts
+    play_counts = [len(game.play_history) for game in games]
+
+    return min(play_counts) if play_counts else 0

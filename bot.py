@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from db import database
+from db.migration_controller import run_migrations
 
 
 # Bot setup
@@ -72,10 +73,12 @@ async def main():
         if not TOKEN:
             raise EnvironmentError("DISCORD_BOT_TOKEN environment variable is missing.")
 
+        # Migrate DB
+        run_migrations()
+
         database.initialize_database()
         await load_cogs()
         await bot.start(TOKEN)
-
 
 # Use asyncio to call the main function
 asyncio.run(main())
