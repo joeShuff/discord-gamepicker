@@ -4,7 +4,7 @@ import discord
 from discord import Interaction
 from discord.ext import commands
 
-from db.database import add_game_to_db
+from db.database import add_game_to_db, get_least_playcount_for_server
 from db.models import Game
 
 
@@ -24,13 +24,16 @@ class AddGameCommand(commands.Cog):
 
         server_id = str(interaction.guild.id)
         try:
+            playcount_offset = get_least_playcount_for_server(server_id)
+
             game = Game(
                 server_id=server_id,
                 name=name,
                 min_players=min_players,
                 max_players=max_players,
                 steam_link=steam_link,
-                banner_link=banner_link
+                banner_link=banner_link,
+                playcount_offset=playcount_offset
             )
             add_game_to_db(game)
             await interaction.response.send_message(f"'{name}' has been added to t’list!")

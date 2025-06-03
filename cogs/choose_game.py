@@ -42,9 +42,8 @@ def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ign
 tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
     if not ignore_choosing_least_played:
         # Filter games to include only those with the least  number of times played
-        # Assuming the 5th element (index 4) is the play count
-        min_play_count = min(len(game.play_history) for game in games)  # Find the minimum play count
-        games = [game for game in games if len(game.play_history) == min_play_count]  # Only include least played games
+        min_play_count = min(len(game.play_history) + game.playcount_offset for game in games)  # Find the minimum play count
+        games = [game for game in games if (len(game.play_history) + game.playcount_offset) == min_play_count]  # Only include least played games
 
     # If there's only one game left in the list after filtering, and it's the one we excluded, return it
     if len(games) == 1 and exclude_game_id and games[0].id == exclude_game_id:
