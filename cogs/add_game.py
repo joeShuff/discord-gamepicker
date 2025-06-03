@@ -39,8 +39,6 @@ class AddGameCommand(commands.Cog):
             await interaction.response.send_message(f"'{name}' has been added to t’list!")
         except sqlite3.IntegrityError:
             await interaction.response.send_message("Error: Game already exists.")
-        except Exception as e:
-            print(e)
 
 
 # Setup function to add the cog to the bot
