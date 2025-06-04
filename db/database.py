@@ -217,6 +217,6 @@ def get_least_playcount_for_server(server_id: str) -> int:
         return 0
 
     # Get play counts
-    play_counts = [len(game.play_history) for game in games]
+    play_counts = [(len(game.play_history) + game.playcount_offset) for game in games]
 
     return min(play_counts) if play_counts else 0
