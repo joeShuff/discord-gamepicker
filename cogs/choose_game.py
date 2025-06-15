@@ -6,8 +6,8 @@ import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
 
-from db.database import fetch_game_from_db, get_eligible_games, get_least_played_games, get_all_server_games, \
-    log_game_selection
+from db.database import get_eligible_games, get_least_played_games, get_all_server_games, \
+    log_game_selection, fetch_game_with_memory
 from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
 from util import date_util
@@ -39,11 +39,13 @@ def create_game_embed(game: GameWithPlayHistory):
 
 # Function to choose a game randomly
 def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_choosing_least_played=False) -> \
-tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
+        tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
     if not ignore_choosing_least_played:
         # Filter games to include only those with the least  number of times played
-        min_play_count = min(len(game.play_history) + game.playcount_offset for game in games)  # Find the minimum play count
-        games = [game for game in games if (len(game.play_history) + game.playcount_offset) == min_play_count]  # Only include least played games
+        min_play_count = min(
+            len(game.play_history) + game.playcount_offset for game in games)  # Find the minimum play count
+        games = [game for game in games if
+                 (len(game.play_history) + game.playcount_offset) == min_play_count]  # Only include least played games
 
     # If there's only one game left in the list after filtering, and it's the one we excluded, return it
     if len(games) == 1 and exclude_game_id and games[0].id == exclude_game_id:
@@ -200,7 +202,7 @@ class ChooseGameCommand(commands.Cog):
         game_options, chosen_game = pick_game(games)
 
         if force_game:
-            matching_game = fetch_game_from_db(server_id, force_game)
+            matching_game = fetch_game_with_memory(server_id, force_game)
 
             if matching_game is None:
                 await interaction.response.send_message(
