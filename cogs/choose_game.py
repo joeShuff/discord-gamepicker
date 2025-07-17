@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import List, Optional
+from typing import List
 
 import discord
 from discord import Interaction, ui, Embed
