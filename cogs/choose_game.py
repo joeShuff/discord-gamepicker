@@ -143,15 +143,23 @@ class ConfirmChoice(ui.View):
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):
-        await interaction.response.defer(thinking=True)
-        await interaction.message.delete()
-        await self.regenerate_wheel(interaction, exclude_game_id=self.current_game[0])
+        try:
+            await self.gif_message.edit(content="Let's reroll...", attachments=[])
+            await interaction.message.delete()
+            await self.regenerate_wheel(self.interaction, exclude_game_id=self.current_game.id)
+        except Exception as e:
+            print("Something went wrong when rejecting a game choice. See exception.")
+            print(e)
 
     @ui.button(label="Ignore least played, choose another.", style=discord.ButtonStyle.primary)
     async def ignore_least_played(self, interaction: Interaction, button: ui.Button):
-        await interaction.response.defer(thinking=True)
-        await interaction.message.delete()
-        await self.regenerate_wheel(interaction, ignore_least_played=True)
+        try:
+            await self.gif_message.edit(content="Let's reroll...", attachments=[])
+            await interaction.message.delete()
+            await self.regenerate_wheel(self.interaction, ignore_least_played=True)
+        except Exception as e:
+            print("Something went wrong when rejecting a game choice. See exception.")
+            print(e)
 
     @ui.button(label="Cancel", style=discord.ButtonStyle.danger)
     async def cancel(self, interaction: Interaction, button: ui.Button):
