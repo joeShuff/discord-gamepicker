@@ -3,7 +3,8 @@ import os
 import sqlite3
 
 from db.database import DB_PATH
-
+import logging
+logger = logging.getLogger(__name__)
 
 def get_migration_modules():
     migration_dir = os.getcwd() + "/db/migrations"
@@ -18,7 +19,7 @@ def run_migrations():
     conn = sqlite3.connect(DB_PATH)
     try:
         for module in get_migration_modules():
-            print(f"Running {module.__name__}")
+            logger.debug(f"Running {module.__name__}")
             module.run_migration(conn)
     finally:
         conn.close()
