@@ -7,29 +7,9 @@ from discord.ext import commands
 from db import database
 from db.migration_controller import run_migrations
 
-import logging
+from util.logger import setup_logger
 
-
-def setup_logger():
-    log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-    log_level = getattr(logging, log_level_name, logging.INFO)
-
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    # quieten noisy libraries
-    logging.getLogger("discord").setLevel(logging.WARNING)
-    logging.getLogger("matplotlib").setLevel(logging.WARNING)
-    logging.getLogger("asyncio").setLevel(logging.WARNING)
-    logging.getLogger("PIL").setLevel(logging.WARNING)
-
-    return logging.getLogger(__name__)  # root logger for your app
-
-
-logger = setup_logger()
+logger = setup_logger(__name__)
 
 
 # Bot setup
