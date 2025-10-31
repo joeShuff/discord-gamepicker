@@ -5,6 +5,9 @@ import random
 from PIL import Image, ImageDraw, ImageFont
 import io
 
+import logging
+logger = logging.getLogger(__name__)
+
 # Wheel parameters
 radius = 5  # Radius of the wheel
 center = (0, 0)  # Center of the wheel
@@ -115,7 +118,7 @@ def generate_rotations(start_rotation, complete_rotations, end_rotation):
     # Calculate the degrees for the constant-speed phase
     degrees_left = total_rotation - (degrees_in_acceleration + degrees_in_deceleration)
     if degrees_left < 0:
-        print("Total rotation is too small for the given acceleration and deceleration phases.")
+        logger.debug("Total rotation is too small for the given acceleration and deceleration phases.")
         return generate_rotations(start_rotation, complete_rotations + 2, end_rotation)
 
     constant_speed_frames = int(degrees_left / max_speed)
@@ -167,13 +170,13 @@ def generate_wheel_of_games(games, winning_index, file_name):
     # hold speed until 1 rotation left
     # decelerate from 30 degrees per frame to 0 degrees per frame
 
-    print(f"starting rot is {start_angle}")
-    print(f"total rotations is {complete_rotations}")
-    print(f"winning min is {winning_min_rotation}")
-    print(f"winning max is {winning_max_rotation}")
-    print(f"winning rot is {winning_rotation}")
+    logger.debug(f"starting rot is {start_angle}")
+    logger.debug(f"total rotations is {complete_rotations}")
+    logger.debug(f"winning min is {winning_min_rotation}")
+    logger.debug(f"winning max is {winning_max_rotation}")
+    logger.debug(f"winning rot is {winning_rotation}")
 
-    print(f"rotations are {rotations}")
+    logger.debug(f"rotations are {rotations}")
 
     images = []
     for angle in rotations:

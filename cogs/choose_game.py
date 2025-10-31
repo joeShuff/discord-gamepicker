@@ -5,6 +5,7 @@ from typing import List
 import discord
 from discord import Interaction, ui, Embed
 from discord.ext import commands
+import logging
 
 from db.database import get_eligible_games, get_least_played_games, get_all_server_games, \
     log_game_selection, fetch_game_with_memory
@@ -13,6 +14,7 @@ from event_handler import schedule_game_event
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
+logger = logging.getLogger(__name__)
 
 def create_wheel_for_discord(games: List[str], winning_index: int, filename: str) -> tuple[discord.File, int]:
     generate_wheel_of_games(games, winning_index, filename)
@@ -148,8 +150,8 @@ class ConfirmChoice(ui.View):
             await interaction.message.delete()
             await self.regenerate_wheel(self.interaction, exclude_game_id=self.current_game.id)
         except Exception as e:
-            print("Something went wrong when rejecting a game choice. See exception.")
-            print(e)
+            logger.error("Something went wrong when rejecting a game choice. See exception.")
+            logger.error(e)
 
     @ui.button(label="Ignore least played, choose another.", style=discord.ButtonStyle.primary)
     async def ignore_least_played(self, interaction: Interaction, button: ui.Button):
@@ -158,8 +160,8 @@ class ConfirmChoice(ui.View):
             await interaction.message.delete()
             await self.regenerate_wheel(self.interaction, ignore_least_played=True)
         except Exception as e:
-            print("Something went wrong when rejecting a game choice. See exception.")
-            print(e)
+            logger.error("Something went wrong when rejecting a game choice. See exception.")
+            logger.error(e)
 
     @ui.button(label="Cancel", style=discord.ButtonStyle.danger)
     async def cancel(self, interaction: Interaction, button: ui.Button):
@@ -220,7 +222,7 @@ class ChooseGameCommand(commands.Cog):
                 return
 
             if matching_game not in game_options:
-                print(f"forced game {force_game} isn't in options list, adding it")
+                logger.debug(f"forced game {force_game} isn't in options list, adding it")
                 game_options.append(matching_game)
 
             chosen_game = matching_game

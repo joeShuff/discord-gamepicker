@@ -9,6 +9,9 @@ from sqlalchemy import and_
 
 from db.models import Base, Game, GameWithPlayHistory, GameLog
 
+import logging
+logger = logging.getLogger(__name__)
+
 DB_PATH = os.path.join(os.getcwd(), "config", "games.db")
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
@@ -21,7 +24,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def initialize_database():
     Base.metadata.create_all(bind=engine)
-    print("Database initialized using SQLAlchemy.")
+    logger.debug("Database initialized using SQLAlchemy.")
 
 
 @contextmanager
@@ -197,7 +200,7 @@ def mark_game_logs_as_ignored(server_id: str, game_name: str, memory_date: Optio
             matching_items = query.all()
 
             if len(matching_items) == 0:
-                print(f"No matching plays for date {memory_date}")
+                logger.debug(f"No matching plays for date {memory_date}")
                 return False
 
         updated_count = query.update({"ignored": 1}, synchronize_session=False)
