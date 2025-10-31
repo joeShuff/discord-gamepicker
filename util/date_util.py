@@ -42,6 +42,8 @@ def convert_input_to_date(input: str):
     if event_start < now:
         event_start = event_start.replace(year=now.year + 1)
 
+    logger.debug(f"start is {event_start}")
+
     return event_start
 
 
