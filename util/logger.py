@@ -2,7 +2,7 @@ import logging
 import os
 
 
-def setup_logger():
+def setup_logger(name: str):
     log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_name, logging.INFO)
 
@@ -12,10 +12,10 @@ def setup_logger():
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    # Optional: quiet noisy libraries
+    # quieten noisy libraries
     logging.getLogger("discord").setLevel(logging.WARNING)
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
 
-    return logging.getLogger("discord_gamebot")  # root logger for your app
-
-
-logger = setup_logger()
+    return logging.getLogger(name)  # root logger for your app
