@@ -10,6 +10,7 @@ from sqlalchemy import and_
 from db.models import Base, Game, GameWithPlayHistory, GameLog
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.getcwd(), "config", "games.db")
@@ -223,3 +224,34 @@ def get_least_playcount_for_server(server_id: str) -> int:
     play_counts = [(len(game.play_history) + game.playcount_offset) for game in games]
 
     return min(play_counts) if play_counts else 0
+
+
+def edit_game_in_db(server_id: str, current_name: str, **updates) -> bool:
+    """
+    Edit a game's details in the database.
+    Accepts keyword arguments for any editable field:
+    e.g. edit_game_in_db(server_id, "Catan", name="Catan Deluxe", min_players=3)
+
+    Returns True if an update was made, False if the game wasn't found.
+    """
+    editable_fields = {
+        "name", "min_players", "max_players",
+        "steam_link", "banner_link", "playcount_offset"
+    }
+
+    with get_session() as session:
+        game = session.query(Game).filter_by(server_id=server_id, name=current_name).first()
+        if not game:
+            return False
+
+        changes_made = False
+        for key, value in updates.items():
+            if key in editable_fields and hasattr(game, key):
+                setattr(game, key, value)
+                changes_made = True
+
+        if changes_made:
+            session.commit()
+            return True
+        else:
+            return False
