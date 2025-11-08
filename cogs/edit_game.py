@@ -118,7 +118,9 @@ class EditGameCommand(commands.Cog):
                 inline=False
             )
 
-        if game.banner_link:
+        if "banner_link" in updates.keys():
+            embed.set_image(url=updates.get("banner_link"))
+        elif game.banner_link:
             embed.set_image(url=game.banner_link)
 
         # Send the embed with confirmation buttons
