@@ -42,6 +42,11 @@ class ConfirmEdit(ui.View):
             if banner_to_show:
                 embed.set_image(url=banner_to_show)
 
+            embed.set_footer(
+                text=f"Edited by {interaction.user.display_name}",
+                icon_url=interaction.user.display_avatar.url
+            )
+
             # Public message in the same channel
             await interaction.channel.send(embed=embed)
 
