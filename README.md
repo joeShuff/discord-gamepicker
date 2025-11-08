@@ -12,12 +12,51 @@
 Welcome to the "Wheel of Games" Bot! This bot helps you randomly choose games to play with your friends. The bot spins a virtual wheel and selects a game based on the number of players and a variety of other factors, ensuring a fun and fair game selection experience.
 
 ## Features
-- Choose a game randomly based on player count.
-- Skip or reject games with ease.
-- Schedule events for the selected game.
-- Mark game sessions as ignored for future selection.
+- 🎯 Choose games randomly based on player count.
+- 🧩 Add, edit, or remove games from the server’s list.
+- 🧮 Track play counts to prioritise less-played games.
+- 🗓️ Automatically schedule events for the selected game.
+- 🚫 Mark sessions as ignored to exclude them from future selections.
+- 📊 List and filter games by player count and other details.
 
 ## Commands & Parameters 📋
+
+### `/addgame`
+Add a new game to the server's game list.
+
+#### Parameters:
+- `name`: **Required** – The name of the game.  
+- `min_players`: **Required** – Minimum number of players supported.  
+- `max_players`: **Required** – Maximum number of players supported.  
+- `steam_link`: **Optional** – Steam store link for the game.  
+- `banner_link`: **Optional** – URL to an image banner for the game.
+
+#### Functionality
+1. Adds the game to the server DB, using the current least-playcount as the `playcount_offset`.  
+2. Prevents duplicate game entries (error returned if the game already exists).  
+3. Shows a success message when the game is added.
+
+### `/editgame`
+Edit the details of an existing game on your server.
+
+#### Parameters:
+
+- `name`: Required – The name of the game you want to edit.
+- `new_name`: Optional – The new name for the game.
+- `min_players`: Optional – Update the minimum number of players.
+- `max_players`: Optional – Update the maximum number of players.
+- `steam_link`: Optional – Update or add the Steam link.
+- `banner_link`: Optional – Update or add the banner image link.
+
+#### Functionality
+
+When you use `/editgame`, the bot fetches the game details from the database.
+
+It shows a confirmation view where you can review your changes before applying them.
+
+Once confirmed, the bot updates the game in the database and posts a public message summarizing the changes — including who made the edit.
+
+The confirmation and edit summary are styled using Discord embeds, including the game’s banner image if available.
 
 ### `/choosegame`
 Choose a game to play!
