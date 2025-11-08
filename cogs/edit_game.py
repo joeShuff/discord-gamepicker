@@ -20,6 +20,31 @@ class ConfirmEdit(ui.View):
         success = edit_game_in_db(server_id, self.game_name, **self.updates)
 
         if success:
+            # Build summary embed for public announcement
+            embed = Embed(
+                title=f"Game Updated: {self.updates.get('name', self.game_name)}",
+                description=f"'{self.game_name}' has been updated!",
+                color=discord.Color.green()
+            )
+
+            # Add changed fields
+            for key, new_value in self.updates.items():
+                old_value = self.old_values.get(key, None)
+                embed.add_field(
+                    name=key.replace('_', ' ').title(),
+                    value=f"**Before:** {old_value if old_value is not None else 'N/A'}\n"
+                          f"**After:** {new_value}",
+                    inline=False
+                )
+
+            # Use new banner if provided, else old one
+            banner_to_show = self.updates.get("banner_link", self.banner_url)
+            if banner_to_show:
+                embed.set_image(url=banner_to_show)
+
+            # Public message in the same channel
+            await interaction.channel.send(embed=embed)
+
             await interaction.response.edit_message(
                 content=f"Reyt, '{self.game_name}' has been updated successfully!",
                 embed=None,
