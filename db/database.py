@@ -255,3 +255,29 @@ def edit_game_in_db(server_id: str, current_name: str, **updates) -> bool:
             return True
         else:
             return False
+
+
+def nuke_playcounts(server_id: str) -> bool:
+    """
+    Reset all played counts for a server by marking all GameLog entries as ignored
+    and resetting playcount_offset to 0 for all games.
+
+    Returns True if any changes were made.
+    """
+    # Get all games for the server
+    games_list = get_all_server_games(server_id)
+    if not games_list:
+        return False
+
+    with get_session() as session:
+        game_ids = [game.id for game in games_list]
+
+        # Mark all GameLog entries for these games as ignored
+        updated_logs = session.query(GameLog).filter(GameLog.game_id.in_(game_ids)).update({"ignored": 1}, synchronize_session=False)
+
+        # Reset playcount_offset to 0 for all games
+        updated_offsets = session.query(Game).filter(Game.server_id == server_id).update({"playcount_offset": 0}, synchronize_session=False)
+
+        session.commit()
+
+        return updated_logs > 0 or updated_offsets > 0
