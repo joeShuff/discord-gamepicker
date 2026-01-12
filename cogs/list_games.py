@@ -30,22 +30,33 @@ class ListGamesCommand(commands.Cog):
         # Modify the title based on the player_count
         embed_title = f"Games List for {player_count} Players" if player_count else "Games List"
 
-        embed = Embed(title=embed_title, color=discord.Color.blue())
-        for game in games:
-            last_played = "Never"
+        # Split games into chunks of 25 for multiple embeds
+        chunk_size = 25
+        total_pages = (len(games) - 1) // chunk_size + 1
+        embeds = []
 
-            if game.play_history:
-                last_played = game.play_history[0].strftime("%d %b %Y")
+        for page in range(total_pages):
+            start = page * chunk_size
+            end = start + chunk_size
+            chunk = games[start:end]
+            page_num = page + 1
+            current_title = f"{embed_title} (Page {page_num}/{total_pages})" if total_pages > 1 else embed_title
+            embed = Embed(title=current_title, color=discord.Color.blue())
+            
+            for game in chunk:
+                last_played = "Never"
+                if game.play_history:
+                    last_played = game.play_history[0].strftime("%d %b %Y")
+                embed.add_field(
+                    name=game.name,
+                    value=f"Last Played: {last_played}\n"
+                          f"Times Played: {len(game.play_history)}\n"
+                          f"Player Count: {game.min_players} - {game.max_players}",
+                    inline=False,
+                )
+            embeds.append(embed)
 
-            embed.add_field(
-                name=game.name,
-                value=f"Last Played: {last_played}\n"
-                      f"Times Played: {len(game.play_history)}\n"
-                      f"Player Count: {game.min_players} - {game.max_players}",
-                inline=False,
-            )
-
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embeds=embeds)
 
 
 # Setup function to add the cog to the bot
