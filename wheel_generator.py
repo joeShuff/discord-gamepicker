@@ -159,7 +159,7 @@ def generate_wheel_of_games(games, winning_index, file_name):
     # + 1 so it's not stopping right on the line
     winning_max_rotation = 360 - ((winning_index * slice_size) + 1)
     # - 2 so it also doesn't stop right on the line
-    winning_min_rotation = winning_max_rotation - slice_size
+    winning_min_rotation = winning_max_rotation - (slice_size - 2)
 
     winning_rotation = int(random.uniform(winning_min_rotation, winning_max_rotation))
 
