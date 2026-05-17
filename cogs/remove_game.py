@@ -6,27 +6,34 @@ from db.database import remove_game_from_db, fetch_game_from_db, get_all_server_
 
 
 class ConfirmRemove(ui.View):
-    def __init__(self, interaction: Interaction, game_name: str, banner_url: str):
+    def __init__(self, requester_id: int, requester_name: str, game_name: str, banner_url: str):
         super().__init__()
-        self.interaction = interaction
+        self.requester_id = requester_id
+        self.requester_name = requester_name
         self.game_name = game_name
         self.banner_url = banner_url
 
     @ui.button(label="⚠️ Yes, permanently delete", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: Interaction, button: ui.Button):
+        if interaction.user.id == self.requester_id:
+            await interaction.response.send_message(
+                "You cannot approve your own removal request.", ephemeral=True
+            )
+            return
+
         server_id = str(interaction.guild.id)
         successful_removal = remove_game_from_db(server_id, self.game_name)
         if successful_removal:
-            # Update the private confirmation message
-            await interaction.response.edit_message(
-                content=f"✅ **{self.game_name}** has been permanently deleted.",
-                embed=None,
-                view=None
+            embed = Embed(
+                title="🗑️ Game Permanently Deleted",
+                description=f"**{self.game_name}** has been permanently removed from the game list.",
+                color=discord.Color.red()
             )
-            # Send a public message so the channel knows
-            await interaction.channel.send(
-                f"🗑️ **{self.game_name}** has been permanently removed from the game list by {interaction.user.mention}."
-            )
+            embed.add_field(name="Requested by", value=self.requester_name, inline=True)
+            embed.add_field(name="Approved by", value=interaction.user.display_name, inline=True)
+            if self.banner_url:
+                embed.set_image(url=self.banner_url)
+            await interaction.response.edit_message(embed=embed, view=None)
         else:
             await interaction.response.edit_message(
                 content="❌ Error: No such game found.",
@@ -63,18 +70,20 @@ class RemoveGameCommand(commands.Cog):
         embed = Embed(
             title="⚠️ Permanently Delete Game?",
             description=(
-                f"You are about to **permanently delete** **{game_name}** from the game list.\n\n"
+                f"**{interaction.user.display_name}** wants to **permanently delete** **{game_name}** from the game list.\n\n"
                 "This will remove the game and **all of its play history** forever. "
                 "This action **cannot be undone**.\n\n"
-                "If you just want to hide the game from searches and the wheel, use `/archivegame` instead."
+                "If you just want to hide the game from searches and the wheel, use `/archivegame` instead.\n\n"
+                "**This request must be approved by another server member.**"
             ),
             color=discord.Color.red()
         )
+        embed.add_field(name="Requested by", value=interaction.user.display_name, inline=True)
         if banner_url:
             embed.set_image(url=banner_url)
 
-        view = ConfirmRemove(interaction, game_name, banner_url)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view = ConfirmRemove(interaction.user.id, interaction.user.display_name, game_name, banner_url)
+        await interaction.response.send_message(embed=embed, view=view)
 
     @remove_game.autocomplete("name")
     async def autocomplete_games(self, interaction: Interaction, current: str):
