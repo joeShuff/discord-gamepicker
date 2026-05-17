@@ -204,12 +204,16 @@ class ChooseGameCommand(commands.Cog):
         if not ignore_least_played:
             games = get_least_played_games(server_id, player_count)
 
+        if len(games) > 25:
+            logger.info(f"Reducing games to 25, currently it is {len(games)}")
+            games = random.sample(games, 25)
+
         if not games:
             await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
             return
 
         # Pick a game
-        game_options, chosen_game = pick_game(games)
+        game_options, chosen_game = pick_game(games, ignore_choosing_least_played=ignore_least_played)
 
         if force_game:
             matching_game = fetch_game_with_memory(server_id, force_game)
