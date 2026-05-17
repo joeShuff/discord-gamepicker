@@ -89,7 +89,7 @@ class RemoveGameCommand(commands.Cog):
     async def autocomplete_games(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names (includes archived games)."""
         server_id = str(interaction.guild.id)
-        game_names = get_all_server_games_including_archived(server_id)[:25]
+        game_names = get_all_server_games_including_archived(server_id, search=current)[:25]
 
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)

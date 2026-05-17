@@ -277,7 +277,7 @@ class ChooseGameCommand(commands.Cog):
     async def autocomplete_force_game(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names."""
         server_id = str(interaction.guild.id)
-        game_names = get_all_server_games(server_id)  # Fetch a list of game names from the database
+        game_names = get_all_server_games(server_id, search=current)[:25]  # Fetch a list of game names from the database
 
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)

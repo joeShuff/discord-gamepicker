@@ -164,39 +164,57 @@ def _build_game_with_play_history(games, session) -> List[GameWithPlayHistory]:
     ]
 
 
-def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
-    """Retrieve all non-archived games for a server, including play history."""
+def get_all_server_games(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve all non-archived games for a server, including play history.
+
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
     with get_session() as session:
-        games = (
+        query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
             .filter(Game.archived == False)  # noqa: E712
-            .all()
         )
-        return _build_game_with_play_history(games, session)
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
 
-def get_archived_server_games(server_id: str) -> List[GameWithPlayHistory]:
-    """Retrieve all archived games for a server."""
+def get_archived_server_games(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve all archived games for a server.
+
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
     with get_session() as session:
-        games = (
+        query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
             .filter(Game.archived == True)  # noqa: E712
-            .all()
         )
-        return _build_game_with_play_history(games, session)
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
 
-def get_all_server_games_including_archived(server_id: str) -> List[GameWithPlayHistory]:
-    """Retrieve every game for a server regardless of archived status (e.g. for /removegame autocomplete)."""
+def get_all_server_games_including_archived(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve every game for a server regardless of archived status (e.g. for /removegame autocomplete).
+
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
     with get_session() as session:
-        games = (
+        query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
-            .all()
         )
-        return _build_game_with_play_history(games, session)
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
 
 def get_eligible_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:

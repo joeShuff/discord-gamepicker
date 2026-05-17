@@ -140,7 +140,7 @@ class ArchiveGameCommand(commands.Cog):
     async def autocomplete_active_games(self, interaction: Interaction, current: str):
         """Autocomplete from non-archived games only."""
         server_id = str(interaction.guild.id)
-        games = get_all_server_games(server_id)[:25]  # excludes archived
+        games = get_all_server_games(server_id, search=current)[:25]  # excludes archived
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
             for game in games if current.lower() in game.name.lower()
@@ -184,7 +184,7 @@ class ArchiveGameCommand(commands.Cog):
     async def autocomplete_archived_games(self, interaction: Interaction, current: str):
         """Autocomplete from archived games only."""
         server_id = str(interaction.guild.id)
-        games = get_archived_server_games(server_id)[:25]
+        games = get_archived_server_games(server_id, search=current)[:25]
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
             for game in games if current.lower() in game.name.lower()
