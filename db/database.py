@@ -133,6 +133,9 @@ def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHi
 
 def _build_game_with_play_history(games, session) -> List[GameWithPlayHistory]:
     """Helper: given a list of Game ORM objects, attach play history and return dataclasses."""
+    if not games:
+        return []
+
     game_ids = [game.id for game in games]
 
     logs = (
@@ -175,7 +178,7 @@ def get_all_server_games(server_id: str, search: Optional[str] = None) -> List[G
         query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
-            .filter(Game.archived == False)  # noqa: E712
+            .filter(Game.archived.is_(False))
         )
         if search:
             query = query.filter(Game.name.ilike(f"%{search}%"))
@@ -193,7 +196,7 @@ def get_archived_server_games(server_id: str, search: Optional[str] = None) -> L
         query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
-            .filter(Game.archived == True)  # noqa: E712
+            .filter(Game.archived.is_(True))
         )
         if search:
             query = query.filter(Game.name.ilike(f"%{search}%"))

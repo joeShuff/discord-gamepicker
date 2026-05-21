@@ -7,7 +7,7 @@ from db.database import remove_game_from_db, fetch_game_from_db, get_all_server_
 
 class ConfirmRemove(ui.View):
     def __init__(self, requester_id: int, requester_name: str, game_name: str, banner_url: str):
-        super().__init__()
+        super().__init__(timeout=10)
         self.requester_id = requester_id
         self.requester_name = requester_name
         self.game_name = game_name
@@ -36,7 +36,7 @@ class ConfirmRemove(ui.View):
             await interaction.response.edit_message(embed=embed, view=None)
         else:
             await interaction.response.edit_message(
-                content="❌ Error: No such game found.",
+                content="❌ This game no longer exists or was already removed.",
                 embed=None,
                 view=None
             )
@@ -48,6 +48,20 @@ class ConfirmRemove(ui.View):
             embed=None,
             view=None
         )
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Deletion Request Expired",
+                description=f"The request to permanently delete **{self.game_name}** has expired. Run `/removegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Requested by", value=self.requester_name, inline=True)
+            await self.message.edit(embed=embed, view=self)
+        except discord.NotFound:
+            pass
 
 
 class RemoveGameCommand(commands.Cog):
@@ -66,7 +80,6 @@ class RemoveGameCommand(commands.Cog):
         game_name = game.name
         banner_url = game.banner_link
 
-        # Make the destructive nature very clear in the confirmation embed
         embed = Embed(
             title="⚠️ Permanently Delete Game?",
             description=(
@@ -84,16 +97,16 @@ class RemoveGameCommand(commands.Cog):
 
         view = ConfirmRemove(interaction.user.id, interaction.user.display_name, game_name, banner_url)
         await interaction.response.send_message(embed=embed, view=view)
+        view.message = await interaction.original_response()
 
     @remove_game.autocomplete("name")
     async def autocomplete_games(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names (includes archived games)."""
         server_id = str(interaction.guild.id)
-        game_names = get_all_server_games_including_archived(server_id, search=current)[:25]
-
+        games = get_all_server_games_including_archived(server_id, search=current)[:25]
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in game_names if current.lower() in game.name.lower()
+            for game in games
         ]
 
 

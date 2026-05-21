@@ -16,11 +16,10 @@ from db.database import (
 # ---------------------------------------------------------------------------
 
 class ConfirmArchive(ui.View):
-    def __init__(self, interaction: Interaction, game_name: str, banner_url: str):
-        super().__init__()
-        self.interaction = interaction
+    def __init__(self, interaction: Interaction, game_name: str):
+        super().__init__(timeout=300)
+        self.original_interaction = interaction
         self.game_name = game_name
-        self.banner_url = banner_url
 
     @ui.button(label="Yes, archive it", style=discord.ButtonStyle.primary)
     async def confirm(self, interaction: Interaction, button: ui.Button):
@@ -32,13 +31,13 @@ class ConfirmArchive(ui.View):
                 embed=None,
                 view=None
             )
-            await interaction.channel.send(
+            await self.original_interaction.followup.send(
                 f"📦 **{self.game_name}** has been archived by {interaction.user.mention} "
                 f"and will no longer appear in searches or wheel spins."
             )
         else:
             await interaction.response.edit_message(
-                content="❌ Error: No such game found.",
+                content="❌ This game no longer exists or was already removed.",
                 embed=None,
                 view=None
             )
@@ -51,17 +50,29 @@ class ConfirmArchive(ui.View):
             view=None
         )
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Archive Request Expired",
+                description=f"The request to archive **{self.game_name}** has expired. Run `/archivegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            await self.original_interaction.edit_original_response(embed=embed, view=self)
+        except discord.NotFound:
+            pass
+
 
 # ---------------------------------------------------------------------------
 # Unarchive
 # ---------------------------------------------------------------------------
 
 class ConfirmUnarchive(ui.View):
-    def __init__(self, interaction: Interaction, game_name: str, banner_url: str):
-        super().__init__()
-        self.interaction = interaction
+    def __init__(self, interaction: Interaction, game_name: str):
+        super().__init__(timeout=300)
+        self.original_interaction = interaction
         self.game_name = game_name
-        self.banner_url = banner_url
 
     @ui.button(label="Yes, unarchive it", style=discord.ButtonStyle.success)
     async def confirm(self, interaction: Interaction, button: ui.Button):
@@ -73,13 +84,13 @@ class ConfirmUnarchive(ui.View):
                 embed=None,
                 view=None
             )
-            await interaction.channel.send(
+            await self.original_interaction.followup.send(
                 f"✅ **{self.game_name}** has been unarchived by {interaction.user.mention} "
                 f"and will appear in searches and wheel spins again."
             )
         else:
             await interaction.response.edit_message(
-                content="❌ Error: No such game found.",
+                content="❌ This game no longer exists or was already removed.",
                 embed=None,
                 view=None
             )
@@ -91,6 +102,19 @@ class ConfirmUnarchive(ui.View):
             embed=None,
             view=None
         )
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Unarchive Request Expired",
+                description=f"The request to unarchive **{self.game_name}** has expired. Run `/unarchivegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            await self.original_interaction.edit_original_response(embed=embed, view=self)
+        except discord.NotFound:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -133,17 +157,17 @@ class ArchiveGameCommand(commands.Cog):
         if game.banner_link:
             embed.set_image(url=game.banner_link)
 
-        view = ConfirmArchive(interaction, game.name, game.banner_link)
+        view = ConfirmArchive(interaction, game.name)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @archive_game.autocomplete("name")
     async def autocomplete_active_games(self, interaction: Interaction, current: str):
         """Autocomplete from non-archived games only."""
         server_id = str(interaction.guild.id)
-        games = get_all_server_games(server_id, search=current)[:25]  # excludes archived
+        games = get_all_server_games(server_id, search=current)[:25]
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in games if current.lower() in game.name.lower()
+            for game in games
         ]
 
     # --- /unarchivegame ---
@@ -177,7 +201,7 @@ class ArchiveGameCommand(commands.Cog):
         if game.banner_link:
             embed.set_image(url=game.banner_link)
 
-        view = ConfirmUnarchive(interaction, game.name, game.banner_link)
+        view = ConfirmUnarchive(interaction, game.name)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @unarchive_game.autocomplete("name")
@@ -187,7 +211,7 @@ class ArchiveGameCommand(commands.Cog):
         games = get_archived_server_games(server_id, search=current)[:25]
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in games if current.lower() in game.name.lower()
+            for game in games
         ]
 
 

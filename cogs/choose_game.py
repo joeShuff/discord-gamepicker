@@ -40,9 +40,9 @@ def create_game_embed(game: GameWithPlayHistory):
 
 
 # Function to choose a game randomly
-def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_choosing_least_played=False) -> \
+def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_least_played_bias=False) -> \
         tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
-    if not ignore_choosing_least_played:
+    if not ignore_least_played_bias:
         # Filter games to include only those with the least  number of times played
         min_play_count = min(
             len(game.play_history) + game.playcount_offset for game in games)  # Find the minimum play count
@@ -66,7 +66,7 @@ def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ign
 
 class ConfirmChoice(ui.View):
     def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None):
-        super().__init__()
+        super().__init__(timeout=300)
         self.interaction = interaction
         self.bot = bot
         self.current_game = initial_game
@@ -92,7 +92,7 @@ class ConfirmChoice(ui.View):
 
         # Pick a game
         game_options, chosen_game = pick_game(games, exclude_game_id=exclude_game_id,
-                                              ignore_choosing_least_played=ignore_least_played)
+                                              ignore_least_played_bias=ignore_least_played)
         if not chosen_game:
             await interaction.followup.send("No games available to choose from.", ephemeral=True)
             return None
@@ -213,7 +213,7 @@ class ChooseGameCommand(commands.Cog):
             return
 
         # Pick a game
-        game_options, chosen_game = pick_game(games, ignore_choosing_least_played=ignore_least_played)
+        game_options, chosen_game = pick_game(games, ignore_least_played_bias=ignore_least_played)
 
         if force_game:
             matching_game = fetch_game_with_memory(server_id, force_game)
@@ -281,9 +281,25 @@ class ChooseGameCommand(commands.Cog):
 
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in game_names if current.lower() in game.name.lower()
+            for game in game_names
         ]
 
+
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Game Selection Expired",
+                description=f"The selection for **{self.current_game.name}** has expired. Run `/choosegame` again to spin the wheel.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Players", value=str(self.player_count), inline=True)
+            await self.gif_message.delete()
+            await self.interaction.edit_original_response(embed=embed, view=self)
+        except (discord.NotFound, Exception):
+            pass
 
 async def setup(bot):
     await bot.add_cog(ChooseGameCommand(bot))
