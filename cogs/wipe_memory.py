@@ -11,7 +11,7 @@ from db.database import fetch_game_from_db, get_all_server_games, fetch_game_wit
 # Confirmation View with Buttons
 class ConfirmationView(ui.View):
     def __init__(self, original_interaction: Interaction, server_id: str, game_name: str, memory_epoch: int = None):
-        super().__init__(timeout=10)
+        super().__init__(timeout=300)
         self.original_interaction = original_interaction
         self.server_id = server_id
         self.game_name = game_name

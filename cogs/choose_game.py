@@ -173,6 +173,7 @@ class ConfirmChoice(ui.View):
             embed=None)
 
     async def on_timeout(self):
+        # Public message — self.message is the result card followup, stored after send so we edit only that message.
         for child in self.children:
             child.disabled = True
         try:

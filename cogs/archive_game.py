@@ -48,6 +48,8 @@ class ConfirmArchive(ui.View):
         )
 
     async def on_timeout(self):
+        # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
+        # edit_original_response() on the stored interaction instead.
         for child in self.children:
             child.disabled = True
         try:
@@ -89,7 +91,6 @@ class ConfirmUnarchive(ui.View):
                 view=None
             )
 
-
     @ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: ui.Button):
         await interaction.response.edit_message(
@@ -99,6 +100,8 @@ class ConfirmUnarchive(ui.View):
         )
 
     async def on_timeout(self):
+        # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
+        # edit_original_response() on the stored interaction instead.
         for child in self.children:
             child.disabled = True
         try:

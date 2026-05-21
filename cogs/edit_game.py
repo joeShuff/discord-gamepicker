@@ -7,7 +7,7 @@ from db.database import fetch_game_from_db, edit_game_in_db, get_all_server_game
 
 class ConfirmEdit(ui.View):
     def __init__(self, original_interaction: Interaction, game_name: str, updates: dict, old_values: dict, banner_url: str):
-        super().__init__(timeout=10)
+        super().__init__(timeout=300)
         self.original_interaction = original_interaction
         self.game_name = game_name
         self.updates = updates
@@ -71,6 +71,8 @@ class ConfirmEdit(ui.View):
         )
 
     async def on_timeout(self):
+        # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
+        # edit_original_response() on the stored interaction instead.
         for child in self.children:
             child.disabled = True
         try:

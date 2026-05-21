@@ -50,6 +50,7 @@ class ConfirmRemove(ui.View):
         )
 
     async def on_timeout(self):
+        # Public message — self.message is set after send_message() so we can edit it directly.
         for child in self.children:
             child.disabled = True
         try:
