@@ -19,6 +19,7 @@ class GameWithPlayHistory:
     banner_link: Optional[str]
     playcount_offset: int
     play_history: List[datetime]
+    archived: bool = False
 
     def __eq__(self, other):
         if not isinstance(other, GameWithPlayHistory):
@@ -39,6 +40,7 @@ class Game(Base):
     max_players = Column(Integer, nullable=False)
     banner_link = Column(Text, nullable=True)
     playcount_offset = Column(Integer, nullable=False, default=0, server_default="0")
+    archived = Column(Boolean, nullable=False, default=False, server_default="0")
 
     logs = relationship("GameLog", back_populates="game", cascade="all, delete-orphan")
 

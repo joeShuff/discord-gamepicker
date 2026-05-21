@@ -40,9 +40,9 @@ def create_game_embed(game: GameWithPlayHistory):
 
 
 # Function to choose a game randomly
-def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_choosing_least_played=False) -> \
+def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ignore_least_played_bias=False) -> \
         tuple[List[GameWithPlayHistory], GameWithPlayHistory]:
-    if not ignore_choosing_least_played:
+    if not ignore_least_played_bias:
         # Filter games to include only those with the least  number of times played
         min_play_count = min(
             len(game.play_history) + game.playcount_offset for game in games)  # Find the minimum play count
@@ -92,7 +92,7 @@ class ConfirmChoice(ui.View):
 
         # Pick a game
         game_options, chosen_game = pick_game(games, exclude_game_id=exclude_game_id,
-                                              ignore_choosing_least_played=ignore_least_played)
+                                              ignore_least_played_bias=ignore_least_played)
         if not chosen_game:
             await interaction.followup.send("No games available to choose from.", ephemeral=True)
             return None
@@ -204,12 +204,16 @@ class ChooseGameCommand(commands.Cog):
         if not ignore_least_played:
             games = get_least_played_games(server_id, player_count)
 
+        if len(games) > 25:
+            logger.info(f"Reducing games to 25, currently it is {len(games)}")
+            games = random.sample(games, 25)
+
         if not games:
             await interaction.response.send_message(f"No games support {player_count} players!", ephemeral=True)
             return
 
         # Pick a game
-        game_options, chosen_game = pick_game(games)
+        game_options, chosen_game = pick_game(games, ignore_least_played_bias=ignore_least_played)
 
         if force_game:
             matching_game = fetch_game_with_memory(server_id, force_game)
@@ -273,11 +277,11 @@ class ChooseGameCommand(commands.Cog):
     async def autocomplete_force_game(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names."""
         server_id = str(interaction.guild.id)
-        game_names = get_all_server_games(server_id)  # Fetch a list of game names from the database
+        game_names = get_all_server_games(server_id, search=current)[:25]  # Fetch a list of game names from the database
 
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in game_names if current.lower() in game.name.lower()
+            for game in game_names
         ]
 
 

@@ -62,6 +62,28 @@ def remove_game_from_db(server_id: str, name: str) -> bool:
         return False
 
 
+def archive_game_in_db(server_id: str, name: str) -> bool:
+    """Mark a game as archived. Returns True if the game was found and updated."""
+    with get_session() as session:
+        game = session.query(Game).filter_by(server_id=server_id, name=name).first()
+        if not game:
+            return False
+        game.archived = True
+        session.commit()
+        return True
+
+
+def unarchive_game_in_db(server_id: str, name: str) -> bool:
+    """Remove the archived flag from a game. Returns True if the game was found and updated."""
+    with get_session() as session:
+        game = session.query(Game).filter_by(server_id=server_id, name=name).first()
+        if not game:
+            return False
+        game.archived = False
+        session.commit()
+        return True
+
+
 def fetch_game_from_db(server_id: str, name: str) -> Optional[Game]:
     """Fetch the full Game object by server ID and name"""
     with get_session() as session:
@@ -104,55 +126,102 @@ def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHi
             steam_link=game.steam_link,
             banner_link=game.banner_link,
             playcount_offset=game.playcount_offset,
-            play_history=play_history
+            play_history=play_history,
+            archived=game.archived,
         )
 
 
-def get_all_server_games(server_id: str) -> List[GameWithPlayHistory]:
-    """Retrieve all games for a server, including play history as a list of datetimes."""
+def _build_game_with_play_history(games, session) -> List[GameWithPlayHistory]:
+    """Helper: given a list of Game ORM objects, attach play history and return dataclasses."""
+    if not games:
+        return []
+
+    game_ids = [game.id for game in games]
+
+    logs = (
+        session.query(GameLog.game_id, GameLog.chosen_at)
+        .filter(GameLog.game_id.in_(game_ids))
+        .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+        .order_by(GameLog.chosen_at.desc())
+        .all()
+    )
+
+    history_map: dict[int, List[datetime]] = {}
+    for game_id, timestamp in logs:
+        history_map.setdefault(game_id, []).append(timestamp)
+
+    return [
+        GameWithPlayHistory(
+            id=game.id,
+            server_id=game.server_id,
+            name=game.name,
+            min_players=game.min_players,
+            max_players=game.max_players,
+            steam_link=game.steam_link,
+            banner_link=game.banner_link,
+            playcount_offset=game.playcount_offset,
+            play_history=history_map.get(game.id, []),
+            archived=game.archived,
+        )
+        for game in games
+    ]
+
+
+def get_all_server_games(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve all non-archived games for a server, including play history.
+
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
     with get_session() as session:
-        games = (
+        query = (
             session.query(Game)
             .filter(Game.server_id == server_id)
-            .all()
+            .filter(Game.archived.is_(False))
         )
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
-        game_ids = [game.id for game in games]
 
-        # Fetch play history for all games at once
-        logs = (
-            session.query(GameLog.game_id, GameLog.chosen_at)
-            .filter(GameLog.game_id.in_(game_ids))
-            .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
-            .order_by(GameLog.chosen_at.desc())
-            .all()
+def get_archived_server_games(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve all archived games for a server.
+
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
+    with get_session() as session:
+        query = (
+            session.query(Game)
+            .filter(Game.server_id == server_id)
+            .filter(Game.archived.is_(True))
         )
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
-        # Organize logs by game_id
-        history_map: dict[int, List[datetime]] = {}
-        for game_id, timestamp in logs:
-            history_map.setdefault(game_id, []).append(timestamp)
 
-        # Build result
-        result = []
-        for game in games:
-            result.append(GameWithPlayHistory(
-                id=game.id,
-                server_id=game.server_id,
-                name=game.name,
-                min_players=game.min_players,
-                max_players=game.max_players,
-                steam_link=game.steam_link,
-                banner_link=game.banner_link,
-                playcount_offset=game.playcount_offset,
-                play_history=history_map.get(game.id, [])
-            ))
+def get_all_server_games_including_archived(server_id: str, search: Optional[str] = None) -> List[GameWithPlayHistory]:
+    """Retrieve every game for a server regardless of archived status (e.g. for /removegame autocomplete).
 
-        return result
+    Args:
+        search: Optional partial name filter (case-insensitive). Only games whose
+                name contains this string will be returned.
+    """
+    with get_session() as session:
+        query = (
+            session.query(Game)
+            .filter(Game.server_id == server_id)
+        )
+        if search:
+            query = query.filter(Game.name.ilike(f"%{search}%"))
+        return _build_game_with_play_history(query.all(), session)
 
 
 def get_eligible_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:
-    """Retrieve games that match the player count by filtering existing server games."""
+    """Retrieve non-archived games that match the player count."""
     all_games = get_all_server_games(server_id)
     return [
         game for game in all_games
@@ -161,7 +230,7 @@ def get_eligible_games(server_id: str, player_count: int) -> list[GameWithPlayHi
 
 
 def get_least_played_games(server_id: str, player_count: int) -> list[GameWithPlayHistory]:
-    """Retrieve the least played games that match the player count."""
+    """Retrieve the least played non-archived games that match the player count."""
     all_games = get_all_server_games(server_id)
     eligible_games = [
         game for game in all_games
@@ -264,8 +333,8 @@ def nuke_playcounts(server_id: str) -> bool:
 
     Returns True if any changes were made.
     """
-    # Get all games for the server
-    games_list = get_all_server_games(server_id)
+    # Get all games for the server (including archived — play history still valid)
+    games_list = get_all_server_games_including_archived(server_id)
     if not games_list:
         return False
 
