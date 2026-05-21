@@ -172,6 +172,20 @@ class ConfirmChoice(ui.View):
             view=None,
             embed=None)
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Game Selection Expired",
+                description=f"The selection for **{self.current_game.name}** has expired. Run `/choosegame` again to spin the wheel.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Players", value=str(self.player_count), inline=True)
+            await self.message.edit(embed=embed, view=self)
+        except (discord.NotFound, Exception):
+            pass
+
 
 class ChooseGameCommand(commands.Cog):
     def __init__(self, bot):
@@ -258,7 +272,7 @@ class ChooseGameCommand(commands.Cog):
         embed = create_game_embed(chosen_game)
         view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
                              event_day)
-        await interaction.followup.send(embed=embed, view=view)
+        view.message = await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
     async def autocomplete_event_day(self, interaction: Interaction, current: str):
@@ -284,22 +298,6 @@ class ChooseGameCommand(commands.Cog):
             for game in game_names
         ]
 
-
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        try:
-            embed = Embed(
-                title="⏱️ Game Selection Expired",
-                description=f"The selection for **{self.current_game.name}** has expired. Run `/choosegame` again to spin the wheel.",
-                color=discord.Color.dark_grey()
-            )
-            embed.add_field(name="Players", value=str(self.player_count), inline=True)
-            await self.gif_message.delete()
-            await self.interaction.edit_original_response(embed=embed, view=self)
-        except (discord.NotFound, Exception):
-            pass
 
 async def setup(bot):
     await bot.add_cog(ChooseGameCommand(bot))

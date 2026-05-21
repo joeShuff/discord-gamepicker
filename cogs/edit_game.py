@@ -6,9 +6,9 @@ from db.database import fetch_game_from_db, edit_game_in_db, get_all_server_game
 
 
 class ConfirmEdit(ui.View):
-    def __init__(self, interaction: Interaction, game_name: str, updates: dict, old_values: dict, banner_url: str):
-        super().__init__()
-        self.interaction = interaction
+    def __init__(self, original_interaction: Interaction, game_name: str, updates: dict, old_values: dict, banner_url: str):
+        super().__init__(timeout=10)
+        self.original_interaction = original_interaction
         self.game_name = game_name
         self.updates = updates
         self.old_values = old_values
@@ -57,7 +57,7 @@ class ConfirmEdit(ui.View):
             )
         else:
             await interaction.response.edit_message(
-                content="Couldn’t update that game — might not exist anymore.",
+                content="Couldn't update that game — might not exist anymore.",
                 embed=None,
                 view=None
             )
@@ -69,6 +69,19 @@ class ConfirmEdit(ui.View):
             embed=None,
             view=None
         )
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Edit Request Expired",
+                description=f"The request to edit **{self.game_name}** has expired. Run `/editgame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            await self.original_interaction.edit_original_response(embed=embed, view=self)
+        except discord.NotFound:
+            pass
 
 
 class EditGameCommand(commands.Cog):
@@ -103,13 +116,13 @@ class EditGameCommand(commands.Cog):
         updates = {k: v for k, v in updates.items() if v is not None}
 
         if not updates:
-            await interaction.response.send_message("Ey up, you’ve not told me what to change!", ephemeral=True)
+            await interaction.response.send_message("Ey up, you've not told me what to change!", ephemeral=True)
             return
 
         # Build summary embed
         embed = Embed(
             title=f"Confirm Edit for '{game.name}'",
-            description="Here’s what’ll be changed if you confirm:",
+            description="Here's what'll be changed if you confirm:",
             color=discord.Color.blurple()
         )
 
@@ -136,11 +149,11 @@ class EditGameCommand(commands.Cog):
     async def autocomplete_games(self, interaction: Interaction, current: str):
         """Provide autocomplete suggestions for game names."""
         server_id = str(interaction.guild.id)
-        game_names = get_all_server_games(server_id)
+        games = get_all_server_games(server_id, search=current)[:25]
 
         return [
             discord.app_commands.Choice(name=game.name, value=game.name)
-            for game in game_names if current.lower() in game.name.lower()
+            for game in games
         ]
 
 
