@@ -17,7 +17,7 @@ from db.database import (
 
 class ConfirmArchive(ui.View):
     def __init__(self, interaction: Interaction, game_name: str):
-        super().__init__()
+        super().__init__(timeout=300)
         self.original_interaction = interaction
         self.game_name = game_name
 
@@ -47,13 +47,27 @@ class ConfirmArchive(ui.View):
             view=None
         )
 
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Archive Request Expired",
+                description=f"The request to archive **{self.game_name}** has expired. Run `/archivegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            await self.original_interaction.edit_original_response(embed=embed, view=self)
+        except discord.NotFound:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Unarchive
 # ---------------------------------------------------------------------------
 
 class ConfirmUnarchive(ui.View):
     def __init__(self, interaction: Interaction, game_name: str):
-        super().__init__()
+        super().__init__(timeout=300)
         self.original_interaction = interaction
         self.game_name = game_name
 
@@ -83,6 +97,19 @@ class ConfirmUnarchive(ui.View):
             embed=None,
             view=None
         )
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Unarchive Request Expired",
+                description=f"The request to unarchive **{self.game_name}** has expired. Run `/unarchivegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            await self.original_interaction.edit_original_response(embed=embed, view=self)
+        except discord.NotFound:
+            pass
 
 
 # ---------------------------------------------------------------------------
