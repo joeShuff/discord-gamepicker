@@ -83,6 +83,7 @@ class RemoveGameCommand(commands.Cog):
 
         view = ConfirmRemove(interaction.user.id, interaction.user.display_name, game_name, banner_url)
         await interaction.response.send_message(embed=embed, view=view)
+        view.message = await interaction.original_response()
 
     @remove_game.autocomplete("name")
     async def autocomplete_games(self, interaction: Interaction, current: str):
