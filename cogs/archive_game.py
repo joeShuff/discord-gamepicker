@@ -25,18 +25,15 @@ class ConfirmArchive(ui.View):
     async def confirm(self, interaction: Interaction, button: ui.Button):
         server_id = str(interaction.guild.id)
         success = archive_game_in_db(server_id, self.game_name)
+        await interaction.response.defer(ephemeral=True)
         if success:
-            await interaction.response.edit_message(
-                content=f"📦 **{self.game_name}** has been archived.",
-                embed=None,
-                view=None
-            )
-            await self.original_interaction.followup.send(
+            await self.original_interaction.delete_original_response()
+            await interaction.channel.send(
                 f"📦 **{self.game_name}** has been archived by {interaction.user.mention} "
                 f"and will no longer appear in searches or wheel spins."
             )
         else:
-            await interaction.response.edit_message(
+            await self.original_interaction.edit_original_response(
                 content="❌ This game no longer exists or was already removed.",
                 embed=None,
                 view=None
@@ -64,22 +61,20 @@ class ConfirmUnarchive(ui.View):
     async def confirm(self, interaction: Interaction, button: ui.Button):
         server_id = str(interaction.guild.id)
         success = unarchive_game_in_db(server_id, self.game_name)
+        await interaction.response.defer(ephemeral=True)
         if success:
-            await interaction.response.edit_message(
-                content=f"✅ **{self.game_name}** has been unarchived.",
-                embed=None,
-                view=None
-            )
-            await self.original_interaction.followup.send(
+            await self.original_interaction.delete_original_response()
+            await interaction.channel.send(
                 f"✅ **{self.game_name}** has been unarchived by {interaction.user.mention} "
                 f"and will appear in searches and wheel spins again."
             )
         else:
-            await interaction.response.edit_message(
+            await self.original_interaction.edit_original_response(
                 content="❌ This game no longer exists or was already removed.",
                 embed=None,
                 view=None
             )
+
 
     @ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: ui.Button):
