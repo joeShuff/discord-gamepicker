@@ -7,7 +7,7 @@ from db.database import remove_game_from_db, fetch_game_from_db, get_all_server_
 
 class ConfirmRemove(ui.View):
     def __init__(self, requester_id: int, requester_name: str, game_name: str, banner_url: str):
-        super().__init__(timeout=10)
+        super().__init__()
         self.requester_id = requester_id
         self.requester_name = requester_name
         self.game_name = game_name
@@ -48,20 +48,6 @@ class ConfirmRemove(ui.View):
             embed=None,
             view=None
         )
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        try:
-            embed = Embed(
-                title="⏱️ Deletion Request Expired",
-                description=f"The request to permanently delete **{self.game_name}** has expired. Run `/removegame` again if still needed.",
-                color=discord.Color.dark_grey()
-            )
-            embed.add_field(name="Requested by", value=self.requester_name, inline=True)
-            await self.message.edit(embed=embed, view=self)
-        except discord.NotFound:
-            pass
 
 
 class RemoveGameCommand(commands.Cog):
