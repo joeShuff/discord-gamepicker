@@ -68,7 +68,7 @@ def _render_frame(
     font: ImageFont.FreeTypeFont,
 ) -> Image.Image:
     """Render a single wheel frame using PIL only (no matplotlib)."""
-    img = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+    img = Image.new("RGBA", (size, size), (32, 32, 36, 255))
     draw = ImageDraw.Draw(img)
 
     n = len(games)
@@ -85,7 +85,7 @@ def _render_frame(
             start=start,
             end=end,
             fill=colour,
-            outline=(255, 255, 255),
+            outline=(32, 32, 36),
             width=2,
         )
 
@@ -139,19 +139,22 @@ def _render_frame(
     # --- Outer ring ---
     draw.ellipse(
         [cx - radius, cy - radius, cx + radius, cy + radius],
-        outline=(255, 255, 255),
+        outline=(80, 80, 88),
         width=3,
     )
 
-    # --- Needle (filled triangle pointing left into the wheel) ---
-    tip_x = cx + NEEDLE_DIST
+    # --- Needle (triangle sitting on the rim, tip overlapping into the wheel) ---
+    # Tip penetrates 20px inside the wheel edge so it clearly points at a segment.
+    # The base sits outside the wheel so the body is always visible.
+    tip_x = cx + radius - 20       # 20px inside the wheel edge
     tip_y = cy
+    base_x = cx + radius + 30      # base sits outside the rim
     needle_pts = [
-        (tip_x + 30, tip_y - 14),   # back top
-        (tip_x + 30, tip_y + 14),   # back bottom
-        (tip_x,      tip_y),         # tip
+        (base_x, tip_y - 14),   # back top
+        (base_x, tip_y + 14),   # back bottom
+        (tip_x,  tip_y),        # tip (inside wheel)
     ]
-    draw.polygon(needle_pts, fill=(30, 30, 30), outline=(255, 255, 255), width=2)
+    draw.polygon(needle_pts, fill=(220, 30, 30), outline=(200, 200, 200), width=2)
 
     return img
 
@@ -204,12 +207,23 @@ def _generate_rotations(
     """
     max_speed = 30
     accel_frames = 20
-    decel_frames = 80
+    decel_frames = 220
 
     total_rotation = (complete_rotations * 360) + (360 - end_rotation) + start_rotation
 
     accel = [round(max_speed * (i / accel_frames) ** 2) for i in range(accel_frames)]
-    decel = [round(max_speed * (1 - (i / decel_frames) ** 2)) for i in range(decel_frames)]
+
+    # Single continuous curve: parameterised to start partway along a fractional-
+    # power curve so the initial decel rate is gentle (no perceptible jerk at the
+    # handoff from constant speed), and the tail naturally slows to near-zero over
+    # ~1.5s for suspense on close calls. Max decel-rate change is <0.001 deg/frame².
+    _t0 = 0.55
+    _exp = 0.35
+    def _t(i): return _t0 + (1 - _t0) * i / decel_frames
+    decel = [
+        max_speed * (1 - _t(i) ** _exp) / (1 - _t0 ** _exp)
+        for i in range(decel_frames)
+    ]
 
     degrees_left = total_rotation - sum(accel) - sum(decel)
     if degrees_left < 0:
@@ -225,7 +239,7 @@ def _generate_rotations(
         current -= speed  # negative = clockwise in PIL (angles increase clockwise)
         frames.append(current)
 
-    # Smooth correction over decel phase
+    # Correction distributed over the decel tail so the landing is exact.
     correction = total_rotation - sum(accel) - len(constant) * max_speed - sum(decel)
     decel_start = len(frames) - len(decel)
     for i in range(len(decel)):
@@ -280,5 +294,3 @@ def generate_wheel_of_games(games: list[str], winning_index: int, file_name: str
         loop=0,
         optimize=False,
     )
-
-
