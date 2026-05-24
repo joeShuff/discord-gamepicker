@@ -12,15 +12,18 @@ from db.database import get_eligible_games, get_least_played_games, get_all_serv
 from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
 from util import date_util
-from wheel_generator import generate_wheel_of_games, calculate_gif_duration
+import wheel_generator
+import wheel_generator_legacy
 
 logger = logging.getLogger(__name__)
 
-def create_wheel_for_discord(games: List[str], winning_index: int, filename: str) -> tuple[discord.File, int]:
-    generate_wheel_of_games(games, winning_index, filename)
-
-    # Calculate GIF duration dynamically
-    gif_duration = calculate_gif_duration(filename)
+def create_wheel_for_discord(games: List[str], winning_index: int, filename: str, legacy: bool = False) -> tuple[discord.File, int]:
+    if legacy:
+        wheel_generator_legacy.generate_wheel_of_games(games, winning_index, filename)
+        gif_duration = wheel_generator_legacy.calculate_gif_duration(filename)
+    else:
+        wheel_generator.generate_wheel_of_games(games, winning_index, filename)
+        gif_duration = wheel_generator.calculate_gif_duration(filename)
 
     # Send the spinning wheel GIF to Discord
     with open(filename, "rb") as gif_file:
@@ -65,7 +68,7 @@ def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ign
 
 
 class ConfirmChoice(ui.View):
-    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None):
+    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None, legacy_wheel=False):
         super().__init__(timeout=300)
         self.interaction = interaction
         self.bot = bot
@@ -75,6 +78,7 @@ class ConfirmChoice(ui.View):
         self.player_count = player_count
         self.server_id = server_id
         self.event_day = event_day
+        self.legacy_wheel = legacy_wheel
 
     async def regenerate_wheel(self, interaction, exclude_game_id=None, ignore_least_played=False):
         # Fetch eligible games
@@ -101,7 +105,7 @@ class ConfirmChoice(ui.View):
         winning_index = game_options.index(chosen_game)
         file_name = "wheel_of_games.gif"
         game_names = [game.name for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(game_names, winning_index, file_name)
+        gif_file, gif_duration = create_wheel_for_discord(game_names, winning_index, file_name, legacy=self.legacy_wheel)
 
         # Send the new spinning wheel GIF and remove the old one
         await self.gif_message.delete()
@@ -117,7 +121,7 @@ class ConfirmChoice(ui.View):
         embed = create_game_embed(chosen_game)
         new_view = ConfirmChoice(
             self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id,
-            self.event_day
+            self.event_day, legacy_wheel=self.legacy_wheel
         )
         await interaction.followup.send(embed=embed, view=new_view)
         return chosen_game
@@ -193,13 +197,21 @@ class ChooseGameCommand(commands.Cog):
         self.bot = bot
 
     @discord.app_commands.command(name="choosegame", description="Choose a game to play!")
+    @discord.app_commands.describe(
+        player_count="Number of players — only games that support this count will be eligible.",
+        ignore_least_played="If true, picks from all eligible games instead of only the least played ones.",
+        event_day="Schedule the event on a specific day (format: dd/MMM, e.g. 18/Dec). Leave blank for default.",
+        force_game="Force a specific game to be selected regardless of play count or eligibility.",
+        legacy_wheel="Use the original wheel style instead of the new one.",
+    )
     async def choose_game(
             self,
             interaction: Interaction,
             player_count: int,
             ignore_least_played: bool = False,
             event_day: str = None,
-            force_game: str = None
+            force_game: str = None,
+            legacy_wheel: bool = False
     ):
         server_id = str(interaction.guild.id)
 
@@ -258,7 +270,7 @@ class ChooseGameCommand(commands.Cog):
         winning_index = game_options.index(chosen_game)
         file_name = "wheel_of_games.gif"
         games = [game.name for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
+        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name, legacy=legacy_wheel)
 
         # Send the spinning wheel GIF
         gif_message = await interaction.followup.send(
@@ -272,7 +284,7 @@ class ChooseGameCommand(commands.Cog):
         # Send the embed with buttons
         embed = create_game_embed(chosen_game)
         view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
-                             event_day)
+                             event_day, legacy_wheel=legacy_wheel)
         view.message = await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
