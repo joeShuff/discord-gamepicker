@@ -1,11 +1,12 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import numpy as np
-import random
-from PIL import Image, ImageDraw, ImageFont
 import io
-
 import logging
+import random
+
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
 logger = logging.getLogger(__name__)
 
 # Wheel parameters

@@ -280,10 +280,14 @@ def generate_wheel_of_games(games: list[str], winning_index: int, file_name: str
 
     # --- Render frames ---
     # Re-using a single render call per frame is the core speed improvement.
+    # The RGBA frame is explicitly closed after palette conversion so the full-colour
+    # buffer doesn't stay resident for the entire list before save.
     frames: list[Image.Image] = []
     for angle in rotations:
         frame = _render_frame(games, colours, angle, SIZE, RADIUS, font)
-        frames.append(frame.convert("P", palette=Image.ADAPTIVE, colors=128))
+        pal_frame = frame.convert("P", palette=Image.ADAPTIVE, colors=128)
+        frame.close()
+        frames.append(pal_frame)
 
     # Hold on the final frame
     for _ in range(20):
