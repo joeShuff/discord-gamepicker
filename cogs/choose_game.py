@@ -13,7 +13,8 @@ from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
-from wheel_generator_legacy import generate_wheel_of_games_legacy, calculate_gif_duration_legacy
+from wheel_generator_legacy import (generate_wheel_of_games as generate_wheel_of_games_legacy,
+                                    calculate_gif_duration as calculate_gif_duration_legacy)
 
 logger = logging.getLogger(__name__)
 
@@ -196,6 +197,13 @@ class ChooseGameCommand(commands.Cog):
         self.bot = bot
 
     @discord.app_commands.command(name="choosegame", description="Choose a game to play!")
+    @discord.app_commands.describe(
+        player_count="Number of players — only games that support this count will be eligible.",
+        ignore_least_played="If true, picks from all eligible games instead of only the least played ones.",
+        event_day="Schedule the event on a specific day (format: dd/MMM, e.g. 18/Dec). Leave blank for default.",
+        force_game="Force a specific game to be selected regardless of play count or eligibility.",
+        legacy_wheel="Use the original wheel style instead of the new one.",
+    )
     async def choose_game(
             self,
             interaction: Interaction,
