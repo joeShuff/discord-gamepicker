@@ -13,14 +13,17 @@ from db.models import GameWithPlayHistory
 from event_handler import schedule_game_event
 from util import date_util
 from wheel_generator import generate_wheel_of_games, calculate_gif_duration
+from wheel_generator_legacy import generate_wheel_of_games_legacy, calculate_gif_duration_legacy
 
 logger = logging.getLogger(__name__)
 
-def create_wheel_for_discord(games: List[str], winning_index: int, filename: str) -> tuple[discord.File, int]:
-    generate_wheel_of_games(games, winning_index, filename)
-
-    # Calculate GIF duration dynamically
-    gif_duration = calculate_gif_duration(filename)
+def create_wheel_for_discord(games: List[str], winning_index: int, filename: str, legacy: bool = False) -> tuple[discord.File, int]:
+    if legacy:
+        generate_wheel_of_games_legacy(games, winning_index, filename)
+        gif_duration = calculate_gif_duration_legacy(filename)
+    else:
+        generate_wheel_of_games(games, winning_index, filename)
+        gif_duration = calculate_gif_duration(filename)
 
     # Send the spinning wheel GIF to Discord
     with open(filename, "rb") as gif_file:
@@ -199,7 +202,8 @@ class ChooseGameCommand(commands.Cog):
             player_count: int,
             ignore_least_played: bool = False,
             event_day: str = None,
-            force_game: str = None
+            force_game: str = None,
+            legacy_wheel: bool = False
     ):
         server_id = str(interaction.guild.id)
 
@@ -258,7 +262,7 @@ class ChooseGameCommand(commands.Cog):
         winning_index = game_options.index(chosen_game)
         file_name = "wheel_of_games.gif"
         games = [game.name for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name)
+        gif_file, gif_duration = create_wheel_for_discord(games, winning_index, file_name, legacy=legacy_wheel)
 
         # Send the spinning wheel GIF
         gif_message = await interaction.followup.send(
