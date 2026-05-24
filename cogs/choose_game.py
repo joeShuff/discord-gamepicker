@@ -69,7 +69,7 @@ def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ign
 
 
 class ConfirmChoice(ui.View):
-    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None):
+    def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None, legacy_wheel=False):
         super().__init__(timeout=300)
         self.interaction = interaction
         self.bot = bot
@@ -79,6 +79,7 @@ class ConfirmChoice(ui.View):
         self.player_count = player_count
         self.server_id = server_id
         self.event_day = event_day
+        self.legacy_wheel = legacy_wheel
 
     async def regenerate_wheel(self, interaction, exclude_game_id=None, ignore_least_played=False):
         # Fetch eligible games
@@ -105,7 +106,7 @@ class ConfirmChoice(ui.View):
         winning_index = game_options.index(chosen_game)
         file_name = "wheel_of_games.gif"
         game_names = [game.name for game in game_options]
-        gif_file, gif_duration = create_wheel_for_discord(game_names, winning_index, file_name)
+        gif_file, gif_duration = create_wheel_for_discord(game_names, winning_index, file_name, legacy=self.legacy_wheel)
 
         # Send the new spinning wheel GIF and remove the old one
         await self.gif_message.delete()
@@ -121,7 +122,7 @@ class ConfirmChoice(ui.View):
         embed = create_game_embed(chosen_game)
         new_view = ConfirmChoice(
             self.interaction, self.bot, chosen_game, game_options, new_gif_message, self.player_count, self.server_id,
-            self.event_day
+            self.event_day, legacy_wheel=self.legacy_wheel
         )
         await interaction.followup.send(embed=embed, view=new_view)
         return chosen_game
@@ -284,7 +285,7 @@ class ChooseGameCommand(commands.Cog):
         # Send the embed with buttons
         embed = create_game_embed(chosen_game)
         view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
-                             event_day)
+                             event_day, legacy_wheel=legacy_wheel)
         view.message = await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
