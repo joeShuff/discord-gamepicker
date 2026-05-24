@@ -9,7 +9,7 @@ from db.database import nuke_playcounts
 # Confirmation View with Buttons
 class NukeConfirmationView(ui.View):
     def __init__(self, server_id: str, requester_id: int, requester_name: str):
-        super().__init__()
+        super().__init__(timeout=300)
         self.server_id = server_id
         self.requester_id = requester_id
         self.requester_name = requester_name
@@ -72,6 +72,21 @@ class NukeConfirmationView(ui.View):
             view=None
         )
 
+    async def on_timeout(self):
+        # Public message — self.message is set after send_message() so we can edit it directly.
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = discord.Embed(
+                title="⏱️ Nuke Request Expired",
+                description="This nuke request has expired. Run `/nuke` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Requested by", value=self.requester_name, inline=True)
+            await self.message.edit(embed=embed, view=self)
+        except discord.NotFound:
+            pass
+
 
 class NukeCog(commands.Cog):
     def __init__(self, bot):
@@ -97,6 +112,7 @@ class NukeCog(commands.Cog):
             embed=embed,
             view=view
         )
+        view.message = await interaction.original_response()
 
 
 # Add the cog to the bot

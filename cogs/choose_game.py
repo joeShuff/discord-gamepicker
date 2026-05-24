@@ -66,7 +66,7 @@ def pick_game(games: List[GameWithPlayHistory], exclude_game_id: str = None, ign
 
 class ConfirmChoice(ui.View):
     def __init__(self, interaction, bot, initial_game, all_games, gif_message, player_count, server_id, event_day=None):
-        super().__init__()
+        super().__init__(timeout=300)
         self.interaction = interaction
         self.bot = bot
         self.current_game = initial_game
@@ -172,6 +172,21 @@ class ConfirmChoice(ui.View):
             view=None,
             embed=None)
 
+    async def on_timeout(self):
+        # Public message — self.message is the result card followup, stored after send so we edit only that message.
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Game Selection Expired",
+                description=f"The selection for **{self.current_game.name}** has expired. Run `/choosegame` again to spin the wheel.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Players", value=str(self.player_count), inline=True)
+            await self.message.edit(embed=embed, view=self)
+        except (discord.NotFound, Exception):
+            pass
+
 
 class ChooseGameCommand(commands.Cog):
     def __init__(self, bot):
@@ -258,7 +273,7 @@ class ChooseGameCommand(commands.Cog):
         embed = create_game_embed(chosen_game)
         view = ConfirmChoice(interaction, self.bot, chosen_game, game_options, gif_message, player_count, server_id,
                              event_day)
-        await interaction.followup.send(embed=embed, view=view)
+        view.message = await interaction.followup.send(embed=embed, view=view)
 
     @choose_game.autocomplete("event_day")
     async def autocomplete_event_day(self, interaction: Interaction, current: str):

@@ -7,7 +7,7 @@ from db.database import remove_game_from_db, fetch_game_from_db, get_all_server_
 
 class ConfirmRemove(ui.View):
     def __init__(self, requester_id: int, requester_name: str, game_name: str, banner_url: str):
-        super().__init__()
+        super().__init__(timeout=300)
         self.requester_id = requester_id
         self.requester_name = requester_name
         self.game_name = game_name
@@ -49,6 +49,21 @@ class ConfirmRemove(ui.View):
             view=None
         )
 
+    async def on_timeout(self):
+        # Public message — self.message is set after send_message() so we can edit it directly.
+        for child in self.children:
+            child.disabled = True
+        try:
+            embed = Embed(
+                title="⏱️ Deletion Request Expired",
+                description=f"The request to permanently delete **{self.game_name}** has expired. Run `/removegame` again if still needed.",
+                color=discord.Color.dark_grey()
+            )
+            embed.add_field(name="Requested by", value=self.requester_name, inline=True)
+            await self.message.edit(embed=embed, view=self)
+        except discord.NotFound:
+            pass
+
 
 class RemoveGameCommand(commands.Cog):
     def __init__(self, bot):
@@ -83,6 +98,7 @@ class RemoveGameCommand(commands.Cog):
 
         view = ConfirmRemove(interaction.user.id, interaction.user.display_name, game_name, banner_url)
         await interaction.response.send_message(embed=embed, view=view)
+        view.message = await interaction.original_response()
 
     @remove_game.autocomplete("name")
     async def autocomplete_games(self, interaction: Interaction, current: str):
