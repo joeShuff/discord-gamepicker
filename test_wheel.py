@@ -1,4 +1,4 @@
-from wheel_generator_2 import generate_wheel_of_games, calculate_gif_duration
+from wheel_generator import generate_wheel_of_games, calculate_gif_duration
 
 games = ["Minecraft", "Among Us", "Rocket League", "Stardew Valley",
          "Overwatch", "Hades", "Deep Rock Galactic", "It Takes Two"]
