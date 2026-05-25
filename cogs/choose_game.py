@@ -146,6 +146,7 @@ class ConfirmChoice(ui.View):
                 content="Game confirmed, but the event could not be scheduled.",
                 view=None
             )
+        self.stop()
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):
@@ -175,6 +176,7 @@ class ConfirmChoice(ui.View):
             content="Reet then, I've nipped that in t’bud. All sorted – like it never happened! If tha needs owt else, gi’ me a shout, aye? 🎡",
             view=None,
             embed=None)
+        self.stop()
 
     async def on_timeout(self):
         # Public message — self.message is the result card followup, stored after send so we edit only that message.

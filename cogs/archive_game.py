@@ -39,6 +39,8 @@ class ConfirmArchive(ui.View):
                 view=None
             )
 
+        self.stop()
+
     @ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: ui.Button):
         await interaction.response.edit_message(
@@ -46,6 +48,7 @@ class ConfirmArchive(ui.View):
             embed=None,
             view=None
         )
+        self.stop()
 
     async def on_timeout(self):
         # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
@@ -90,6 +93,8 @@ class ConfirmUnarchive(ui.View):
                 embed=None,
                 view=None
             )
+            
+        self.stop()
 
     @ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: ui.Button):
@@ -98,6 +103,7 @@ class ConfirmUnarchive(ui.View):
             embed=None,
             view=None
         )
+        self.stop()
 
     async def on_timeout(self):
         # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
