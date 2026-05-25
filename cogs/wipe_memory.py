@@ -39,6 +39,8 @@ class ConfirmationView(ui.View):
                 view=None
             )
 
+        self.stop()
+
     @discord.ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: Button):
         await interaction.response.edit_message(
@@ -46,8 +48,11 @@ class ConfirmationView(ui.View):
             embed=None,
             view=None
         )
+        self.stop()
 
     async def on_timeout(self):
+        # Ephemeral message — self.message is unavailable for ephemeral responses, so we use
+        # edit_original_response() on the stored interaction instead.
         for child in self.children:
             child.disabled = True
         try:

@@ -146,6 +146,7 @@ class ConfirmChoice(ui.View):
                 content="Game confirmed, but the event could not be scheduled.",
                 view=None
             )
+        self.stop()
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):

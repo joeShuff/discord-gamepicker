@@ -63,6 +63,8 @@ class NukeConfirmationView(ui.View):
                 embed=None,
                 view=None
             )
+            
+        self.stop()
 
     @discord.ui.button(label="No, cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: Interaction, button: Button):
@@ -71,6 +73,7 @@ class NukeConfirmationView(ui.View):
             embed=None,
             view=None
         )
+        self.stop()
 
     async def on_timeout(self):
         # Public message — self.message is set after send_message() so we can edit it directly.
