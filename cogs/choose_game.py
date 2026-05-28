@@ -7,6 +7,7 @@ from discord import Interaction, ui, Embed
 from discord.ext import commands
 import logging
 
+from ai_responses import generate_response
 from db.database import get_eligible_games, get_least_played_games, get_all_server_games, \
     log_game_selection, fetch_game_with_memory
 from db.models import GameWithPlayHistory
@@ -129,29 +130,39 @@ class ConfirmChoice(ui.View):
     @ui.button(label="Aye, we'll play this one.", style=discord.ButtonStyle.success)
     async def confirm(self, interaction: Interaction, button: ui.Button):
         # Immediately remove ability to click on the message because this can lead to double presses
-        await interaction.message.edit(content=f"Game confirmed, creating event...", view=None, embed=None)
+        await interaction.edit_original_response(content="Reyt, sorting t'event out...", view=None, embed=None)
+        await interaction.response.defer()
 
         scheduled_event, event_date = await schedule_game_event(interaction, self.current_game, self.event_day)
 
         log_game_selection(self.current_game.id, event_date)
 
         if scheduled_event is not None:
-            await interaction.message.edit(
-                content=f"Game confirmed! 🎉 Event scheduled: [View Event]({scheduled_event.url})",
-                view=None,
-                embed=None
-            )
+            confirm_msg = await generate_response(
+                "The group have confirmed their game choice and an event has been scheduled.",
+                f"Game: {self.current_game.name}. Event link: {scheduled_event.url}"
+            ) or f"Game confirmed! 🎉 [View Event]({scheduled_event.url})"
+            if scheduled_event.url not in confirm_msg:
+                confirm_msg += f" [View Event]({scheduled_event.url})"
+            await interaction.edit_original_response(content=confirm_msg, view=None, embed=None)
         else:
-            await interaction.message.edit(
-                content="Game confirmed, but the event could not be scheduled.",
-                view=None
-            )
+            confirm_msg = await generate_response(
+                "The group confirmed their game but the Discord event could not be scheduled.",
+                f"Game: {self.current_game.name}"
+            ) or "Game confirmed, but the event could not be scheduled."
+            await interaction.edit_original_response(content=confirm_msg, view=None)
         self.stop()
 
     @ui.button(label="Nay, choose another.", style=discord.ButtonStyle.secondary)
     async def reject(self, interaction: Interaction, button: ui.Button):
+        await interaction.response.defer()
+
         try:
-            await self.gif_message.edit(content="Let's reroll...", attachments=[])
+            reroll_msg = await generate_response(
+                "Someone rejected the chosen game and wants a different one.",
+                f"Rejected game: {self.current_game.name}"
+            ) or "Nay bother, let's have another go..."
+            await self.gif_message.edit(content=reroll_msg, attachments=[])
             await interaction.message.delete()
             await self.regenerate_wheel(self.interaction, exclude_game_id=self.current_game.id)
         except Exception as e:
@@ -160,8 +171,13 @@ class ConfirmChoice(ui.View):
 
     @ui.button(label="Ignore least played, choose another.", style=discord.ButtonStyle.primary)
     async def ignore_least_played(self, interaction: Interaction, button: ui.Button):
+        await interaction.response.defer()
+
         try:
-            await self.gif_message.edit(content="Let's reroll...", attachments=[])
+            reroll_msg = await generate_response(
+                "Someone wants to ignore the least-played weighting and pick any game at random."
+            ) or "Reyt, we'll pick from t'lot this time..."
+            await self.gif_message.edit(content=reroll_msg, attachments=[])
             await interaction.message.delete()
             await self.regenerate_wheel(self.interaction, ignore_least_played=True)
         except Exception as e:
@@ -170,12 +186,14 @@ class ConfirmChoice(ui.View):
 
     @ui.button(label="Cancel", style=discord.ButtonStyle.danger)
     async def cancel(self, interaction: Interaction, button: ui.Button):
+        await interaction.response.defer()
+
         # Delete the GIF message and the current interaction message
         await self.gif_message.delete()
-        await interaction.message.edit(
-            content="Reet then, I've nipped that in t’bud. All sorted – like it never happened! If tha needs owt else, gi’ me a shout, aye? 🎡",
-            view=None,
-            embed=None)
+        cancel_msg = await generate_response(
+            "The user cancelled the game selection entirely."
+        ) or "Reet then, nowt chosen. Give 'er another spin whenever tha's ready!"
+        await interaction.edit_original_response(content=cancel_msg, view=None, embed=None)
         self.stop()
 
     async def on_timeout(self):
@@ -189,6 +207,11 @@ class ConfirmChoice(ui.View):
                 color=discord.Color.dark_grey()
             )
             embed.add_field(name="Players", value=str(self.player_count), inline=True)
+            timeout_msg = await generate_response(
+                "The game selection timed out because nobody confirmed or cancelled in time.",
+                f"Game that was shown: {self.current_game.name}"
+            ) or "Tha took too long! Run `/choosegame` again when tha's ready."
+            embed.description = embed.description + "\n\n" + timeout_msg
             await self.message.edit(embed=embed, view=self)
         except (discord.NotFound, Exception):
             pass
@@ -202,7 +225,7 @@ class ChooseGameCommand(commands.Cog):
     @discord.app_commands.describe(
         player_count="Number of players — only games that support this count will be eligible.",
         ignore_least_played="If true, picks from all eligible games instead of only the least played ones.",
-        event_day="Schedule the event on a specific day (format: dd/MMM, e.g. 18/Dec). Leave blank for default.",
+        event_day="Schedule the event on a specific day (format: dd/MMM, e.g. 18/Dec). Leave blank for no event.",
         force_game="Force a specific game to be selected regardless of play count or eligibility.",
         legacy_wheel="Use the original wheel style instead of the new one.",
     )
@@ -264,9 +287,15 @@ class ChooseGameCommand(commands.Cog):
             await interaction.response.send_message("No games available to choose from.", ephemeral=True)
             return
 
-        # Respond to the interaction
-        await interaction.response.send_message(
-            f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮")
+        # Defer the response to show "thinking" and get up to 15 minutes to respond
+        await interaction.response.defer()
+
+        # Generate AI response for the spin message
+        spin_msg = await generate_response(
+            "The bot is about to spin the wheel to pick a game for the group to play.",
+            f"{player_count} players are joining."
+        ) or f"🎉 Let's get the party started! Choosing a game for {player_count} players... Please hold on while I spin the wheel! 🎮"
+        await interaction.followup.send(spin_msg)
 
         # Generate the GIF
         winning_index = game_options.index(chosen_game)
