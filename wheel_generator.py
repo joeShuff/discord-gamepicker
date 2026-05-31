@@ -1,3 +1,4 @@
+import os
 import math
 import random
 import io
@@ -260,7 +261,9 @@ def generate_wheel_of_games(games: list[str], winning_index: int, file_name: str
     """
     # Scale font size to the number of games: fewer games = bigger slices = bigger text.
     # Clamp between 13 (many games) and 22 (few games).
-    dynamic_font_size = max(13, min(22, int(34 - len(games) * 0.8)))
+    # Apply FONT_SCALE from environment to adjust for DPI differences across systems.
+    font_scale = float(os.environ.get("FONT_SCALE", "1.0"))
+    dynamic_font_size = max(13, min(22, int((34 - len(games) * 0.8) * font_scale)))
     font = _load_font(dynamic_font_size)
     colours = _assign_colours(len(games))
 
