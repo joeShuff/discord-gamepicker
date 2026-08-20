@@ -385,7 +385,7 @@ def get_most_recent_game_played(server_id: str):
         if not result:
             return None
 
-        _, game = result
+        game_log, game = result
 
         return GameWithPlayHistory(
             id=game.id,
@@ -398,4 +398,4 @@ def get_most_recent_game_played(server_id: str):
             playcount_offset=game.playcount_offset,
             play_history=[],
             archived=game.archived,
-        )
+        ), game_log.chosen_at

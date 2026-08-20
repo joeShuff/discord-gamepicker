@@ -133,14 +133,16 @@ class RepeatGameCommand(commands.Cog):
     async def repeat_game(self, interaction: Interaction):
         server_id = str(interaction.guild.id)
 
-        recent_game = get_most_recent_game_played(server_id)
+        result = get_most_recent_game_played(server_id)
 
-        if recent_game is None:
+        if result is None:
             await interaction.response.send_message(
                 "There isn't a recently played game to repeat!",
                 ephemeral=True
             )
             return
+
+        recent_game, last_played = result
 
         embed = Embed(
             title="🔁 Repeat Last Game?",
@@ -150,6 +152,12 @@ class RepeatGameCommand(commands.Cog):
                 f"Do you want to play **{recent_game.name}** again next week?"
             ),
             color=discord.Color.orange()
+        )
+
+        embed.add_field(
+            name="Last Played",
+            value=last_played.strftime("%d %B %Y"),
+            inline=True
         )
 
         if recent_game.banner_link:
