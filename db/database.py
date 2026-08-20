@@ -111,6 +111,7 @@ def fetch_game_with_memory(server_id: str, name: str) -> Optional[GameWithPlayHi
             session.query(GameLog.chosen_at)
             .filter(GameLog.game_id == game.id)
             .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+            .filter((GameLog.repeat.is_(None)) | (GameLog.repeat == 0))
             .order_by(GameLog.chosen_at.desc())
             .all()
         )
@@ -142,6 +143,7 @@ def _build_game_with_play_history(games, session) -> List[GameWithPlayHistory]:
         session.query(GameLog.game_id, GameLog.chosen_at)
         .filter(GameLog.game_id.in_(game_ids))
         .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+        .filter((GameLog.repeat.is_(None)) | (GameLog.repeat == 0))
         .order_by(GameLog.chosen_at.desc())
         .all()
     )
@@ -239,13 +241,25 @@ def get_least_played_games(server_id: str, player_count: int) -> list[GameWithPl
     return sorted(eligible_games, key=lambda g: len(g.play_history))
 
 
-def log_game_selection(game_id: int, date: datetime = datetime.utcnow()):
-    """Log the selection of a game."""
+def log_game_selection(
+        game_id: int,
+        date: datetime = None,
+        repeat: bool = False
+):
+    """Log the selection of a game.
+
+    Repeats are stored in game_log for historical/data purposes, but are
+    excluded from play history so they do not affect game play counts.
+    """
     if date is None:
         date = datetime.utcnow()
 
     with get_session() as session:
-        new_log = GameLog(game_id=game_id, chosen_at=date)
+        new_log = GameLog(
+            game_id=game_id,
+            chosen_at=date,
+            repeat=repeat,
+        )
         session.add(new_log)
         session.commit()
 
@@ -350,3 +364,38 @@ def nuke_playcounts(server_id: str) -> bool:
         session.commit()
 
         return updated_logs > 0 or updated_offsets > 0
+
+
+def get_most_recent_game_played(server_id: str):
+    """Return the most recently scheduled game for this server.
+
+    This includes repeat entries, since /repeatgame should be able to
+    repeat the game from the most recent event.
+    """
+    with get_session() as session:
+        result = (
+            session.query(GameLog, Game)
+            .join(Game, Game.id == GameLog.game_id)
+            .filter(Game.server_id == server_id)
+            .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+            .order_by(GameLog.chosen_at.desc())
+            .first()
+        )
+
+        if not result:
+            return None
+
+        _, game = result
+
+        return GameWithPlayHistory(
+            id=game.id,
+            server_id=game.server_id,
+            name=game.name,
+            min_players=game.min_players,
+            max_players=game.max_players,
+            steam_link=game.steam_link,
+            banner_link=game.banner_link,
+            playcount_offset=game.playcount_offset,
+            play_history=[],
+            archived=game.archived,
+        )

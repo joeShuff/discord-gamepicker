@@ -52,5 +52,6 @@ class GameLog(Base):
     game_id = Column(Integer, ForeignKey("game_list.id"), nullable=False)
     chosen_at = Column(TIMESTAMP, default=datetime.utcnow)
     ignored = Column(Boolean, default=False)
+    repeat = Column(Boolean, nullable=False, default=False, server_default="0")
 
     game = relationship("Game", back_populates="logs")
