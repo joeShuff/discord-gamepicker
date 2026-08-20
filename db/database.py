@@ -367,10 +367,9 @@ def nuke_playcounts(server_id: str) -> bool:
 
 
 def get_most_recent_game_played(server_id: str):
-    """Return the most recently scheduled game for this server.
+    """Return the most recently played game for this server.
 
-    This includes repeat entries, since /repeatgame should be able to
-    repeat the game from the most recent event.
+    Only games whose scheduled date is in the past are considered.
     """
     with get_session() as session:
         result = (
@@ -378,6 +377,7 @@ def get_most_recent_game_played(server_id: str):
             .join(Game, Game.id == GameLog.game_id)
             .filter(Game.server_id == server_id)
             .filter((GameLog.ignored.is_(None)) | (GameLog.ignored == 0))
+            .filter(GameLog.chosen_at < datetime.utcnow())
             .order_by(GameLog.chosen_at.desc())
             .first()
         )
@@ -385,7 +385,7 @@ def get_most_recent_game_played(server_id: str):
         if not result:
             return None
 
-        _, game = result
+        game_log, game = result
 
         return GameWithPlayHistory(
             id=game.id,
@@ -398,4 +398,4 @@ def get_most_recent_game_played(server_id: str):
             playcount_offset=game.playcount_offset,
             play_history=[],
             archived=game.archived,
-        )
+        ), game_log.chosen_at
