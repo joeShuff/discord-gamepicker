@@ -4,7 +4,8 @@ import discord
 from discord import Interaction, Embed, ui
 from discord.ext import commands
 
-from db.database import get_most_recent_game_played, log_game_selection
+from db.database import get_most_recent_game_played, log_game_selection, fetch_game_with_memory, \
+    get_all_server_games_including_archived
 from event_handler import schedule_game_event
 
 logger = logging.getLogger(__name__)
@@ -128,26 +129,48 @@ class RepeatGameCommand(commands.Cog):
 
     @discord.app_commands.command(
         name="repeatgame",
-        description="Repeat the most recently played game next week."
+        description="Repeat a game next week."
     )
-    async def repeat_game(self, interaction: Interaction):
+    @discord.app_commands.describe(
+        game="The game to repeat. Leave blank to repeat the most recently played game."
+    )
+    async def repeat_game(
+            self,
+            interaction: Interaction,
+            game: str | None = None
+    ):
         server_id = str(interaction.guild.id)
 
-        result = get_most_recent_game_played(server_id)
+        if game:
+            # Find the requested game
+            selected_game = fetch_game_with_memory(server_id, game)
 
-        if result is None:
-            await interaction.response.send_message(
-                "There isn't a recently played game to repeat!",
-                ephemeral=True
-            )
-            return
+            if selected_game is None:
+                await interaction.response.send_message(
+                    f"I couldn't find a game called **{game}**.",
+                    ephemeral=True
+                )
+                return
 
-        recent_game, last_played = result
+            recent_game = selected_game
+            last_played = selected_game.play_history[0] if selected_game.play_history else None
+
+        else:
+            result = get_most_recent_game_played(server_id)
+
+            if result is None:
+                await interaction.response.send_message(
+                    "There isn't a recently played game to repeat!",
+                    ephemeral=True
+                )
+                return
+
+            recent_game, last_played = result
 
         embed = Embed(
-            title="🔁 Repeat Last Game?",
+            title="🔁 Repeat Game?",
             description=(
-                f"The most recently played game was:\n\n"
+                f"You have recently played:\n"
                 f"## 🎮 {recent_game.name}\n\n"
                 f"Do you want to play **{recent_game.name}** again next week?"
             ),
@@ -185,6 +208,15 @@ class RepeatGameCommand(commands.Cog):
 
         view.message = await interaction.original_response()
 
+    @repeat_game.autocomplete("game")
+    async def autocomplete_games(self, interaction: Interaction, current: str):
+        """Provide autocomplete suggestions for game names (includes archived games)."""
+        server_id = str(interaction.guild.id)
+        games = get_all_server_games_including_archived(server_id, search=current)[:25]
+        return [
+            discord.app_commands.Choice(name=game.name, value=game.name)
+            for game in games
+        ]
 
 async def setup(bot):
     await bot.add_cog(RepeatGameCommand(bot))
