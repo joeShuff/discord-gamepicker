@@ -179,7 +179,7 @@ class RepeatGameCommand(commands.Cog):
 
         embed.add_field(
             name="Last Played",
-            value=last_played.strftime("%d %B %Y"),
+            value=last_played.strftime("%d %B %Y") if last_played else "Never",
             inline=True
         )
 

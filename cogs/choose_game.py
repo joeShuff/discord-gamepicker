@@ -35,6 +35,8 @@ def create_wheel_for_discord(games: List[str], winning_index: int, filename: str
 def create_game_embed(game: GameWithPlayHistory):
     embed = Embed(title=f"Chosen Game: {game.name}", color=discord.Color.green())
     embed.add_field(name="Supported players", value=f"{game.min_players} - {game.max_players}", inline=False)
+    last_played = game.play_history[0].strftime("%d %b %Y") if game.play_history else "Never"
+    embed.add_field(name="Last played", value=last_played, inline=False)
     if game.steam_link:
         embed.add_field(name="Steam Link", value=game.steam_link, inline=False)
     if game.banner_link:
